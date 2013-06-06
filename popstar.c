@@ -6,24 +6,24 @@
  * 4 -> blue
  * 5 -> purple/white
  * */
-typedef struct {
-    int total,
-    Group *groups
+
+typedef struct map_t {
+    int	total;
+    struct group_t *groups;
 } Map;
 
-typedef struct {
-    int color,
-    int total,
-    Star *stars
+typedef struct group_t {
+    int color;
+    int total;
+    struct star_t *stars;
 } Group;
 
-typedef struct {
-    int color,
-    int x,
-    int y,
-    Group *group
+struct star_t {
+    int color;
+    int x;
+    int y;
+    struct group_t *group;
 } Star;
-
 
 int stage_test[][10] = {
 {1, 2, 2, 1, 3, 1, 2, 4, 2, 4}, 
@@ -39,14 +39,14 @@ int stage_test[][10] = {
 };
 
 #define STAR 22
-void print_stage(int (*stage)[10])
+void print_stage(int *stage, int x, int y )
 {
     int i, j;
     printf("  0 1 2 3 4 5 6 7 8 9 \n"); /* X axis */
-    for (i=0; i<10; i++) {
+    for (i=0; i<y; i++) {
         printf("%d ", i); /* Y axis */
-        for (j=0; j<10; j++) {
-            switch (stage[i][j]) {
+        for (j=0; j<x; j++) {
+            switch (*(stage+i*x+j)) {
             case 1:
                 printf("\e[31m\e[1m%c ", STAR);
                 //printf("\e[41mR \e[0m ");
@@ -77,6 +77,6 @@ void print_stage(int (*stage)[10])
 
 int main()
 {
-    print_stage(stage_test);
+    print_stage((int*)stage_test, 10 ,10);
     return 0;
 }
