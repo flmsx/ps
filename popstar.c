@@ -8,14 +8,17 @@
  * */
 
 typedef struct map_t {
-    int	total;
+    int	count;
     struct group_t *groups;
 } Map;
 
 typedef struct group_t {
+    int id;
     int color;
-    int total;
-    struct star_t *stars;
+    int count;
+    struct star_t **stars;
+    int *x;
+    int *y;
 } Group;
 
 struct star_t {
@@ -25,8 +28,54 @@ struct star_t {
     struct group_t *group;
 } Star;
 
+void init_stars(int *stage, int x, int y, Star **stars)
+{
+    int i, j;
+    stars = (star**)calloc(x*y, sizeof(*Star));
+    assert(stars);
+    for (i = 0; i < y; i++) {
+        (for j = 0; j < x; j++) {
+            stars[i*x + j] = (Star*)malloc(sizeof(Star));
+            assert(stars[i*x + j]);
+            stars[i*x + j]->color = stage[i*x +j];
+            stars[i*x + j]->y = i;
+            stars[i*x + j]->x = j;
+            stars[i*x + j]->group = NULL;
+        }
+    }
+}
+
+void init_group(Group *group)
+{
+    group->id = -1;
+    group->count = 0;
+    group->color = -1;
+    group->stars = NULL;
+}
+
+void generate_map(int *stage, int x, int y, Map *map, Star **stars)
+{
+    int i, j;
+    int group_id = -1;
+    Group *group;
+
+    init_stars(stage, x, y, stars);
+
+    for (i = 0; i < y; i++) {
+        (for j = 0; j < x; j++) {
+            if (!stars[i*x + j]->group) {
+                group = (Group*)malloc(sizeof(Group));
+                assert(group);
+                group->id = ++group_id;
+                stars[i*x + j]->group = group;
+                
+            }
+        }
+    }
+}
+
 int stage_test[][10] = {
-{1, 2, 2, 1, 3, 1, 2, 4, 2, 4}, 
+{1, 2, 2, 1, 3, 1, 2, 4, 2, 4},
 {2, 2, 2, 4, 3, 2, 5, 2, 5, 1}, 
 {3, 3, 4, 5, 5, 2, 2, 5, 2, 1}, 
 {1, 4, 3, 3, 3, 2, 5, 1, 1, 5}, 
@@ -39,7 +88,7 @@ int stage_test[][10] = {
 };
 
 #define STAR 22
-void print_stage(int *stage, int x, int y )
+void print_stage(int *stage, int x, int y)
 {
     int i, j;
     printf("  0 1 2 3 4 5 6 7 8 9 \n"); /* X axis */
