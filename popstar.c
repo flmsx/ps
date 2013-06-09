@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
 
 /* 1 -> red 
  * 2 -> green
@@ -6,6 +8,8 @@
  * 4 -> blue
  * 5 -> purple/white
  * */
+enum COLORS {RED, GREEN, YELLOW, BLUE, PURPLE};
+enum DIRECTIONS {UP, DOWN, LEFT, RIGHT, NONE};
 
 typedef struct map_t {
     int	count;
@@ -17,24 +21,28 @@ typedef struct group_t {
     int color;
     int count;
     struct star_t **stars;
-    int *x;
-    int *y;
 } Group;
 
-struct star_t {
+typedef struct star_t {
     int color;
     int x;
     int y;
     struct group_t *group;
 } Star;
 
+#define left(star) ((star->x) ? *(&star - 1) : NULL)
+#define right(star) ((star->x < x - 1) ? *(&star + 1) : NULL)
+#define up(star) ((star->y) ? *(&star - x) : NULL)
+#define down(star) ((star->y < y - 1) ? *(&star + x) : NULL)
+//#define alone(star) 
+
 void init_stars(int *stage, int x, int y, Star **stars)
 {
     int i, j;
-    stars = (star**)calloc(x*y, sizeof(*Star));
+    stars = (Star**)calloc(x*y, sizeof(Star*));
     assert(stars);
     for (i = 0; i < y; i++) {
-        (for j = 0; j < x; j++) {
+        for (j = 0; j < x; j++) {
             stars[i*x + j] = (Star*)malloc(sizeof(Star));
             assert(stars[i*x + j]);
             stars[i*x + j]->color = stage[i*x +j];
@@ -43,7 +51,12 @@ void init_stars(int *stage, int x, int y, Star **stars)
             stars[i*x + j]->group = NULL;
         }
     }
+    //test (up down left right) macro
+    //printf("right:%p, %p left:%p\n", right(stars[0]), stars[1], left(stars[0]));
+    //printf("up:%p, %p down:%d\n", down(stars[9*10+0]), stars[1], up(stars[90])->color);
 }
+
+Group group_alone = {-1, 0, 1, NULL};
 
 void init_group(Group *group)
 {
@@ -53,6 +66,8 @@ void init_group(Group *group)
     group->stars = NULL;
 }
 
+#define is_alone(star)
+
 void generate_map(int *stage, int x, int y, Map *map, Star **stars)
 {
     int i, j;
@@ -61,13 +76,13 @@ void generate_map(int *stage, int x, int y, Map *map, Star **stars)
 
     init_stars(stage, x, y, stars);
 
-    for (i = 0; i < y; i++) {
-        (for j = 0; j < x; j++) {
-            if (!stars[i*x + j]->group) {
+    for (j = 0; j < y; j++) {
+        for (i = 0; i < x; i++) {
+            if (!stars[j*x + i]->group) {
                 group = (Group*)malloc(sizeof(Group));
                 assert(group);
                 group->id = ++group_id;
-                stars[i*x + j]->group = group;
+                stars[j*x + i]->group = group;
                 
             }
         }
@@ -92,10 +107,10 @@ void print_stage(int *stage, int x, int y)
 {
     int i, j;
     printf("  0 1 2 3 4 5 6 7 8 9 \n"); /* X axis */
-    for (i=0; i<y; i++) {
-        printf("%d ", i); /* Y axis */
-        for (j=0; j<x; j++) {
-            switch (*(stage+i*x+j)) {
+    for (j=0; j<y; j++) {
+        printf("%d ", j); /* Y axis */
+        for (i=0; i<x; i++) {
+            switch (*(stage+j*x+i)) {
             case 1:
                 printf("\e[31m\e[1m%c ", STAR);
                 //printf("\e[41mR \e[0m ");
@@ -127,5 +142,7 @@ void print_stage(int *stage, int x, int y)
 int main()
 {
     print_stage((int*)stage_test, 10 ,10);
+    Star **stars = NULL;
+    init_stars((int*)stage_test, 10, 10, stars);
     return 0;
 }
