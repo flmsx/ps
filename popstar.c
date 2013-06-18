@@ -11,15 +11,21 @@
 enum COLORS {RED, GREEN, YELLOW, BLUE, PURPLE};
 enum DIRECTIONS {UP, DOWN, LEFT, RIGHT, NONE};
 
+#define MAP_CAPACITY 40
+#define MAP_CAPACITY_STEP 5
 typedef struct map_t {
     int	count;
-    struct group_t *groups;
+	int capacity;
+    struct group_t **groups;
 } Map;
 
+#define GROUP_CAPACITY 20
+#define GROUP_CAPACITY_STEP 5
 typedef struct group_t {
     int id;
     int color;
     int count;
+	int capacity;
     struct star_t **stars;
 } Group;
 
@@ -67,18 +73,57 @@ void init_group(Group *group)
     group->id = -1;
     group->count = 0;
     group->color = -1;
-    group->stars = NULL;
+	group->capacity = GROUP_CAPACITY;
+	group->stars = NULL;
+	group->stars = (Star**)calloc(GROUP_CAPACITY, sizeof(Star*));
+	assert(group->stars);
 }
 
-Star* find_next_group_member(Star *star)
+#define add_to_group(group, star)											\
+	do {																	\
+		star->group = group;												\
+		if (++group->count > group->capacity) {								\
+			(group->capacity += GROUP_CAPACITY_STEP);						\
+			realloc(group->stars, group->capacity * sizeof(Star*));			\
+			assert(group->stars);											\
+		}																	\
+		group->stars[star->group->count-1] = star;							\
+	} while (0)
+
+void find_next_group_member(Star *star)
 {
-    Star *left, *down, *right, *up;
+    Star *left, *right, *down, *up;
     left = left(star);
-    
-    if (star->color == left->color) {
-        
+    right = right(star);
+	down = down(star);
+	up = up(star);
+
+    if (!right->group && right->color == star->color) {
+        add_to_group(star->group, right);
+		find_next_group_member(right);
     }
-        
+
+	if (!down->group && down->color == star->color) {
+        add_to_group(star->group, down);
+		find_next_group_member(down);
+    }
+
+	if (!left->group && left->color == star->color) {
+        add_to_group(star->group, left);
+		find_next_group_member(left);
+    }
+
+	if (!up->group && up->color == star->color) {
+        add_to_group(star->group, up);
+		find_next_group_member(up);
+    }  
+}
+
+void init_map(Map *map)
+{
+	map->count = 0;
+	map->capacity = MAP_CAPACITY;
+	map->groups = (Group**)calloc(MAP_CAPACITY, sizeof(Group*));
 }
 
 void generate_map(int *stage, int x, int y, Map *map, Star **stars)
@@ -89,14 +134,23 @@ void generate_map(int *stage, int x, int y, Map *map, Star **stars)
 
     init_stars(stage, x, y, stars);
 
+	init_map(map);
+
     for (j = 0; j < y; j++) {
         for (i = 0; i < x; i++) {
             if (!stars[j*x + i]->group) {
                 group = (Group*)malloc(sizeof(Group));
                 assert(group);
+				init_group(group);
                 group->id = ++group_id;
                 stars[j*x + i]->group = group;
                 
+				if (++map->count > map->capacity) {
+					map->capcity += MAP_CAPACITY_STEP;
+					map->groups = (Group**)realloc(map->groups, map->capacity * sizeof(Group*));
+					assert(map->groups);
+				}
+				map->groups[map->count-1] = group;
             }
         }
     }
