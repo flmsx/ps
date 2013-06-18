@@ -24,16 +24,19 @@ typedef struct group_t {
 } Group;
 
 typedef struct star_t {
+    int id;
     int color;
     int x;
     int y;
     struct group_t *group;
 } Star;
 
-#define left(star) ((star->x) ? *(&star - 1) : NULL)
-#define right(star) ((star->x < x - 1) ? *(&star + 1) : NULL)
-#define up(star) ((star->y) ? *(&star - x) : NULL)
-#define down(star) ((star->y < y - 1) ? *(&star + x) : NULL)
+Star star_null = {-1, -1, -1, -1, NULL};
+
+#define left(star) ((star->x) ? *(&star - 1) : &star_null)
+#define right(star) ((star->x < x - 1) ? *(&star + 1) : &star_null)
+#define up(star) ((star->y) ? *(&star - x) : &star_null)
+#define down(star) ((star->y < y - 1) ? *(&star + x) : &star_null)
 //#define alone(star) 
 
 void init_stars(int *stage, int x, int y, Star **stars)
@@ -45,6 +48,7 @@ void init_stars(int *stage, int x, int y, Star **stars)
         for (j = 0; j < x; j++) {
             stars[i*x + j] = (Star*)malloc(sizeof(Star));
             assert(stars[i*x + j]);
+            stars[i*x + j]->id = i*x + j;
             stars[i*x + j]->color = stage[i*x +j];
             stars[i*x + j]->y = i;
             stars[i*x + j]->x = j;
@@ -66,7 +70,16 @@ void init_group(Group *group)
     group->stars = NULL;
 }
 
-#define is_alone(star)
+Star* find_next_group_member(Star *star)
+{
+    Star *left, *down, *right, *up;
+    left = left(star);
+    
+    if (star->color == left->color) {
+        
+    }
+        
+}
 
 void generate_map(int *stage, int x, int y, Map *map, Star **stars)
 {
