@@ -12,6 +12,7 @@ typedef struct s_shell_t {
     int cmds_cnt;
     int cmds_cap;
     struct s_shell_cmd_t *dsp_table;
+	void *data;
 } shell_t;
 
 typedef struct s_shell_cmd_t {

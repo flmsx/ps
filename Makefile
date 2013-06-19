@@ -1,14 +1,20 @@
 SHELLOBJS = test_shell.o shell.o
+POPSTAROBJS = popstar.o shell.o
+
 CC = gcc
 CFLAGS = -g
 
-all: shell
+all: shell popstar
 
 shell: $(SHELLOBJS)
 	gcc $^ $(CFLAGS) -o $@ -lm
-	rm -f *.o
+	
+popstar: $(POPSTAROBJS)
+	gcc $^ $(CFLAGS) -o $@
+
 shell.o: shell.h
 test_shell.o: shell.h
+popstar.o: shell.h
 
 clean:
 	rm -f *.o

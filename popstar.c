@@ -40,16 +40,16 @@ typedef struct star_t {
 
 Star star_null = {-1, -1, -1, -1, NULL};
 
-#define left(star) ((star->x) ? *(&star - 1) : &star_null)
-#define right(star) ((star->x < x - 1) ? *(&star + 1) : &star_null)
-#define up(star) ((star->y) ? *(&star - x) : &star_null)
-#define down(star) ((star->y < y - 1) ? *(&star + x) : &star_null)
+#define left(star) ((star->x) ? *(&(star) - 1) : &star_null)
+#define right(star) ((star->x < x - 1) ? *(&(star) + 1) : &star_null)
+#define up(star) ((star->y) ? *(&(star) - x) : &star_null)
+#define down(star) ((star->y < y - 1) ? *(&(star) + x) : &star_null)
 //#define alone(star) 
 
-void init_stars(int *stage, int x, int y, Star **stars)
+Star** init_stars(int *stage, int x, int y)
 {
     int i, j;
-    stars = (Star**)calloc(x*y, sizeof(Star*));
+    Star **stars = (Star**)calloc(x*y, sizeof(Star*));
     assert(stars);
     for (i = 0; i < y; i++) {
         for (j = 0; j < x; j++) {
@@ -63,8 +63,9 @@ void init_stars(int *stage, int x, int y, Star **stars)
         }
     }
     //test (up down left right) macro
-    //printf("right:%p, %p left:%p\n", right(stars[0]), stars[1], left(stars[0]));
-    //printf("up:%p, %p down:%d\n", down(stars[9*10+0]), stars[1], up(stars[90])->color);
+    printf("right:%p, %p left:%p\n", right(stars[0]), stars[1], left(stars[0]));
+    printf("up:%p, %p down:%d\n", down(stars[9*10+0]), stars[1], up(stars[90])->color);
+	return stars;
 }
 
 //Group group_alone = {-1, 0, 1, NULL};
@@ -80,43 +81,43 @@ void init_group(Group *group)
 	assert(group->stars);
 }
 
-#define add_to_group(group, star)											\
-	do {																	\
-		star->group = group;												\
-		if (++group->count > group->capacity) {								\
-			(group->capacity += GROUP_CAPACITY_STEP);						\
-			realloc(group->stars, group->capacity * sizeof(Star*));			\
-			assert(group->stars);											\
-		}																	\
-		group->stars[star->group->count-1] = star;							\
+#define add_to_group(grp, star)																	\
+	do {																						\
+		star->group = grp;																		\
+		if (++grp->count > grp->capacity) {														\
+			grp->capacity += GROUP_CAPACITY_STEP;												\
+			grp->stars = (Star**)realloc(grp->stars, grp->capacity * sizeof(Star*));			\
+			assert(grp->stars);																	\
+		}																						\
+		grp->stars[star->group->count-1] = star;												\
 	} while (0)
 
-void find_next_group_member(Star *star)
+void find_next_group_member(Star **stars, int id, int x, int y)
 {
     Star *left, *right, *down, *up;
-    left = left(star);
-    right = right(star);
-	down = down(star);
-	up = up(star);
+    left = left(stars[id]); 
+    right = right(stars[id]);
+	down = down(stars[id]);
+	up = up(stars[id]);
 
-    if (!right->group && right->color == star->color) {
-        add_to_group(star->group, right);
-		find_next_group_member(right);
+    if (!right->group && right->color == stars[id]->color) {
+        add_to_group(stars[id]->group, right);
+		find_next_group_member(stars, right->id, x, y);
     }
 
-	if (!down->group && down->color == star->color) {
-        add_to_group(star->group, down);
-		find_next_group_member(down);
+	if (!down->group && down->color == stars[id]->color) {
+        add_to_group(stars[id]->group, down);
+		find_next_group_member(stars, down->id, x, y);
     }
 
-	if (!left->group && left->color == star->color) {
-        add_to_group(star->group, left);
-		find_next_group_member(left);
+	if (!left->group && left->color == stars[id]->color) {
+        add_to_group(stars[id]->group, left);
+		find_next_group_member(stars, left->id, x, y);
     }
 
-	if (!up->group && up->color == star->color) {
-        add_to_group(star->group, up);
-		find_next_group_member(up);
+	if (!up->group && up->color == stars[id]->color) {
+        add_to_group(stars[id]->group, up);
+		find_next_group_member(stars, up->id, x, y);
     }  
 }
 
@@ -127,13 +128,11 @@ void init_map(Map *map)
 	map->groups = (Group**)calloc(MAP_CAPACITY, sizeof(Group*));
 }
 
-void generate_map(int *stage, int x, int y, Map *map, Star **stars)
+void generate_map(int x, int y, Map *map, Star **stars)
 {
     int i, j;
     int group_id = -1;
     Group *group;
-
-    init_stars(stage, x, y, stars);
 
 	init_map(map);
 
@@ -147,11 +146,12 @@ void generate_map(int *stage, int x, int y, Map *map, Star **stars)
                 stars[j*x + i]->group = group;
                 
 				if (++map->count > map->capacity) {
-					map->capcity += MAP_CAPACITY_STEP;
+					map->capacity += MAP_CAPACITY_STEP;
 					map->groups = (Group**)realloc(map->groups, map->capacity * sizeof(Group*));
 					assert(map->groups);
 				}
 				map->groups[map->count-1] = group;
+				find_next_group_member(stars, j*x + i, x, y);
             }
         }
     }
@@ -207,10 +207,31 @@ void print_stage(int *stage, int x, int y)
     }
 }
 
+SHELL_MK_CMD(print)
+{
+	print_stage((int*)stage_test, 10 ,10);
+}
+
+SHELL_MK_CMD(select)
+{
+	
+}
+
+shell_cmd_t cmds_table[] ={
+    SHELL_CMD(print, "", "Print the (test) stage"),
+    SHELL_CMD(select, "cc", "Select the group including star (x,y)")
+};
+
 int main()
 {
     print_stage((int*)stage_test, 10 ,10);
     Star **stars = NULL;
-    init_stars((int*)stage_test, 10, 10, stars);
+    stars = init_stars((int*)stage_test, 10, 10);
+
+	Map *map = (Map*)malloc(sizeof(Map));
+	assert(map);
+	generate_map(10, 10, map, stars);
+
+	printf("stars = %p\n", stars);
     return 0;
 }

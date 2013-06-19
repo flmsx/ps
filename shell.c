@@ -98,8 +98,8 @@ static shell_arg_t *args_parse(const char *s)
                 if(!tok)
                     ESCAPE;
                 args[i].c = tok[0];
-                if(!islower(args[i].c))
-                    ESCAPE;
+                //if(!islower(args[i].c))
+                //    ESCAPE;
                 break;
             case 'f':
                 tok = strtok(NULL,delim);
