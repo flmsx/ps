@@ -10,7 +10,7 @@ typedef union {
 
 typedef struct s_shell_t {
     int cmds_cnt;
-    int cmds_cnt_cap;
+    int cmds_cap;
     struct s_shell_cmd_t *dsp_table;
 } shell_t;
 
@@ -26,7 +26,7 @@ typedef struct s_shell_cmd_t {
 //The dispatch table
 #define SHELL_CMD(func, params, help) {#func, shell_cmd_ ## func, params, help}
 
-shell_t* shell_new(shell_t *shell);
+shell_t* shell_new();
 
 void shell_destroy(shell_t *shell);
 

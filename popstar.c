@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include "shell.h"
 
 /* 1 -> red 
  * 2 -> green
@@ -66,7 +67,7 @@ void init_stars(int *stage, int x, int y, Star **stars)
     //printf("up:%p, %p down:%d\n", down(stars[9*10+0]), stars[1], up(stars[90])->color);
 }
 
-Group group_alone = {-1, 0, 1, NULL};
+//Group group_alone = {-1, 0, 1, NULL};
 
 void init_group(Group *group)
 {

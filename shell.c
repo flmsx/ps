@@ -1,63 +1,76 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
+#include <assert.h>
+#include "shell.h"
 
-//Type definitions
-typedef union {
-    char  *s;
-    char   c;
-    float  f;
-} arg_t;
+/* Built-in cmds */
+static SHELL_MK_CMD(exit)
+{
+	exit(0);
+}
 
-typedef struct {
-    const char* name;
-    void (*func)(arg_t*);
-    const char* args;
-    const char* doc;
-} cmd_t;
+static SHELL_MK_CMD(help)
+{
+    puts("Available Commands:");
+    int i=shell->cmds_cnt;
+    while(i--) {
+        shell_cmd_t cmd=shell->dsp_table[i];
+        char tmp[100];//Formatting buffer
+        snprintf(tmp,100,"%s(%s)",cmd.name,cmd.args);
+        printf("%10s\t- %s\n",tmp,cmd.doc);
+    }
+}
 
-#define MK_CMD(x) void cmd_ ## x (arg_t*)
-//Functions definitions
-MK_CMD(prompt);
-MK_CMD(load);
-MK_CMD(disp);
-MK_CMD(add);
-MK_CMD(mul);
-MK_CMD(sqrt);
-MK_CMD(exit);
-MK_CMD(help);
+static shell_cmd_t builtin_cmd_exit = SHELL_CMD(exit,"","Exits the interpreter");
+static shell_cmd_t builtin_cmd_help = SHELL_CMD(help,"","Display this help");
 
-arg_t *args_parse(const char *s);
+shell_t* shell_new()
+{
+	shell_t *shell = (shell_t*)malloc(sizeof(shell_t));
+	assert(shell);
+	shell->cmds_cnt = 0;
+	shell->cmds_cap = 10;
+	shell->dsp_table = (shell_cmd_t*)calloc(shell->cmds_cap, sizeof(shell_cmd_t));
+	assert(shell->dsp_table);
+	shell_register_cmd(builtin_cmd_help, shell);
+	shell_register_cmd(builtin_cmd_exit, shell);
+	return shell;
+}
 
-//The dispatch table
-#define CMD(func, params, help) {#func, cmd_ ## func, params, help}
-#define CMDS 8
-cmd_t dsp_table[CMDS] ={
-    CMD(prompt,"s","Select the prompt for input"),
-    CMD(load,"cf","Load into register float"),
-    CMD(disp,"c","Display register"),
-    CMD(add,"ff","Add two numbers"),
-    CMD(mul,"ff","Multiply two numbers"),
-    CMD(sqrt,"f","Take the square root of number"),
-    CMD(exit,"","Exits the interpreter"),
-    CMD(help,"","Display this help")};
+void shell_destroy(shell_t *shell)
+{
+	free(shell->dsp_table);
+	free(shell);
+}
 
-const char *delim = " \n(,);";
-void parse(char *cmd)
+void shell_register_cmd(shell_cmd_t cmd, shell_t *shell)
+{
+	if (++shell->cmds_cnt > shell->cmds_cap) {
+		shell->cmds_cap += 5;
+		shell->dsp_table = (shell_cmd_t*)realloc(shell->dsp_table, shell->cmds_cap * sizeof(shell_cmd_t));
+		assert(shell->dsp_table);
+	}
+	shell->dsp_table[shell->cmds_cnt-1] = cmd;
+}
+
+static shell_arg_t *args_parse(const char *s);
+
+static const char *delim = " \n(,);";
+static void parse(char *cmd, shell_t *shell)
 {
     const char* tok = strtok(cmd,delim);
     if(!tok)
         return;
 
-    int i=CMDS;
+    int i=shell->cmds_cnt;
     while(i--) {
-        cmd_t cur = dsp_table[i];
+        shell_cmd_t cur = shell->dsp_table[i];
         if(!strcmp(tok,cur.name)) {
-            arg_t *args = args_parse(cur.args);
+            shell_arg_t *args = args_parse(cur.args);
             if(args==NULL && strlen(cur.args))
                 return;//Error in argument parsing
-            cur.func(args);
+            cur.func(args, shell);
             free(args);
             return;
         }
@@ -67,10 +80,10 @@ void parse(char *cmd)
 }
 
 #define ESCAPE {free(args); puts("Bad Argument(s)"); return NULL;}
-arg_t *args_parse(const char *s)
+static shell_arg_t *args_parse(const char *s)
 {
     int argc=strlen(s);
-    arg_t *args=malloc(sizeof(arg_t)*argc);
+    shell_arg_t *args=malloc(sizeof(shell_arg_t)*argc);
     int i;
     for(i=0;i<argc;++i) {
         char *tok;
@@ -100,46 +113,18 @@ arg_t *args_parse(const char *s)
 #undef ESCAPE
 
 //Global data
-char prompt[200];
-float regs['z'-'a'];
-void set_reg(char c, float f) {regs[c-'a'] = f;}
-float get_reg(char c) {return regs[c-'a'];}
+static const char *prompt = ">";
 
-int main()
+int shell_run(shell_t *shell)
 {
-    char i;
-    for(i='a';i<='z';++i)
-        set_reg(i,0.0f);
-    strncpy(prompt,">",200);
-
     //Read Parse Exec Loop
     char cmd[200];
     while(1) {
         printf("%s ",prompt);
         fflush(stdout);
 
-        parse(fgets(cmd,200,stdin));
+        parse(fgets(cmd,200,stdin), shell);
     }
 
     return 2;
 }
-
-void cmd_prompt(arg_t *args) {strncpy(prompt,args[0].s,200);}
-void cmd_load(arg_t *args) {set_reg(args[0].c,args[1].f);}
-void cmd_disp(arg_t *args) {printf("%f\n", get_reg(args[0].c));}
-void cmd_add(arg_t *args) {printf("%f\n",args[0].f+args[1].f);}
-void cmd_mul(arg_t *args) {printf("%f\n",args[0].f*args[1].f);}
-void cmd_sqrt(arg_t *args) {printf("%f\n",sqrt(args[0].f));}
-void cmd_exit(arg_t *args) {exit(0);}
-void cmd_help(arg_t *args)
-{
-    puts("Available Commands:");
-    int i=CMDS;
-    while(i--) {
-        cmd_t cmd=dsp_table[i];
-        char tmp[100];//Formatting buffer
-        snprintf(tmp,100,"%s(%s)",cmd.name,cmd.args);
-        printf("%10s\t- %s\n",tmp,cmd.doc);
-    }
-}
-

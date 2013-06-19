@@ -16,8 +16,8 @@ shell_cmd_t dsp_table[3] ={
 
 int main()
 {
-    shell_t *shell = NULL;
-    shell_new(shell);
+    shell_t *shell;
+    shel = shell_new();
     shell_register_cmd(dsp_table[0], shell);
     shell_register_cmd(dsp_table[1], shell);
     shell_register_cmd(dsp_table[2], shell);
