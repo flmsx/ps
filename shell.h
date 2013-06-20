@@ -4,8 +4,7 @@
 //Type definitions
 typedef union {
     char  *s;
-    char   c;
-    float  f;
+    int    i;
 } shell_arg_t;
 
 typedef struct s_shell_t {

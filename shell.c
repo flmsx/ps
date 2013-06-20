@@ -93,18 +93,14 @@ static shell_arg_t *args_parse(const char *s)
                 if(!args[i].s)
                     ESCAPE;
                 break;
-            case 'c':
+            case 'i':
                 tok = strtok(NULL,delim);
                 if(!tok)
                     ESCAPE;
-                args[i].c = tok[0];
+                args[i].i = atoi(tok);
+                //printf("arg %d is %d\n", i, args[i].i);
                 //if(!islower(args[i].c))
                 //    ESCAPE;
-                break;
-            case 'f':
-                tok = strtok(NULL,delim);
-                if(sscanf(tok,"%f", &args[i].f)!=1)
-                    ESCAPE;
                 break;
         }
     }

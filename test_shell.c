@@ -4,14 +4,14 @@
 #include <math.h>
 #include "shell.h"
 
-SHELL_MK_CMD(add) {printf("%f\n",args[0].f+args[1].f);}
-SHELL_MK_CMD(mul) {printf("%f\n",args[0].f*args[1].f);}
-SHELL_MK_CMD(sqrt) {printf("%f\n",sqrt(args[0].f));}
+SHELL_MK_CMD(add) {printf("%d\n",args[0].i+args[1].i);}
+SHELL_MK_CMD(mul) {printf("%d\n",args[0].i*args[1].i);}
+SHELL_MK_CMD(sqrt) {printf("%d\n",sqrt(args[0].i));}
 
 shell_cmd_t dsp_table[3] ={
-    SHELL_CMD(add,"ff","Add two numbers"),
-    SHELL_CMD(mul,"ff","Multiply two numbers"),
-    SHELL_CMD(sqrt,"f","Take the square root of number")};
+    SHELL_CMD(add,"ii","Add two numbers"),
+    SHELL_CMD(mul,"ii","Multiply two numbers"),
+    SHELL_CMD(sqrt,"i","Take the square root of number")};
 
 
 int main()

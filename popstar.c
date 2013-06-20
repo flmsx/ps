@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include "shell.h"
 
@@ -44,7 +45,6 @@ Star star_null = {-1, -1, -1, -1, NULL};
 #define right(star) ((star->x < x - 1) ? *(&(star) + 1) : &star_null)
 #define up(star) ((star->y) ? *(&(star) - x) : &star_null)
 #define down(star) ((star->y < y - 1) ? *(&(star) + x) : &star_null)
-//#define alone(star) 
 
 Star** init_stars(int *stage, int x, int y)
 {
@@ -62,10 +62,12 @@ Star** init_stars(int *stage, int x, int y)
             stars[i*x + j]->group = NULL;
         }
     }
-    //test (up down left right) macro
-    printf("right:%p, %p left:%p\n", right(stars[0]), stars[1], left(stars[0]));
-    printf("up:%p, %p down:%d\n", down(stars[9*10+0]), stars[1], up(stars[90])->color);
 	return stars;
+
+    //test (up down left right) macro
+    //printf("right:%p, %p left:%p\n", right(stars[0]), stars[1], left(stars[0]));
+    //printf("up:%p, %p down:%d\n", down(stars[9*10+0]), stars[1], up(stars[90])->color);
+
 }
 
 //Group group_alone = {-1, 0, 1, NULL};
@@ -92,7 +94,7 @@ void init_group(Group *group)
 		grp->stars[star->group->count-1] = star;												\
 	} while (0)
 
-void find_next_group_member(Star **stars, int id, int x, int y)
+inline void find_next_group_member(Star **stars, int id, int x, int y)
 {
     Star *left, *right, *down, *up;
     left = left(stars[id]); 
@@ -121,18 +123,22 @@ void find_next_group_member(Star **stars, int id, int x, int y)
     }  
 }
 
-void init_map(Map *map)
+static void init_map(Map *map)
 {
 	map->count = 0;
 	map->capacity = MAP_CAPACITY;
 	map->groups = (Group**)calloc(MAP_CAPACITY, sizeof(Group*));
+    assert(map->groups);
 }
 
-void generate_map(int x, int y, Map *map, Star **stars)
+Map* generate_map(Star **stars, int x, int y)
 {
     int i, j;
     int group_id = -1;
     Group *group;
+
+    Map *map = (Map*)malloc(sizeof(Map));
+	assert(map);
 
 	init_map(map);
 
@@ -155,6 +161,8 @@ void generate_map(int x, int y, Map *map, Star **stars)
             }
         }
     }
+
+    return map;
 }
 
 int stage_test[][10] = {
@@ -170,6 +178,52 @@ int stage_test[][10] = {
 {3, 4, 2, 4, 1, 2, 2, 3, 1, 4}
 };
 
+typedef enum {
+    P_Bright = 0x00000001,
+    P_Blink  = 0x00000002,
+    P_Reverse  = 0x00000004
+} StarStyle; 
+
+void print_star(int color, int style, char shape)
+{
+    char *color_str;
+    char format_str[50] = {0,};
+    const char *close_style_str = "\e[0m";
+    const char *blink_style_str = "\e[5m";
+    const char *bright_style_str = "\e[1m";
+    const char *reverse_style_str = "\e[7m";
+    switch (color) {
+    case 1:
+        color_str = "\e[31m";
+        break;
+    case 2:
+        color_str = "\e[32m";
+        break;
+    case 3:
+        color_str = "\e[33m";
+        break;
+    case 4:
+        color_str = "\e[34m";
+        break;
+    case 5:
+        color_str = "\e[37m";
+        break;
+    default:
+        color_str = "\e[30m";
+        fprintf(stderr, "Unkonw color! Black displayed. \n");
+    }
+    if (style & P_Bright)
+        strcat(format_str, bright_style_str);
+    if (style & P_Blink)
+        strcat(format_str, blink_style_str);
+    if (style & P_Reverse)
+        strcat(format_str, reverse_style_str);
+    strcat(format_str, color_str);
+    strcat(format_str, "%c ");
+    strcat(format_str, close_style_str);
+    printf(format_str, shape);
+}
+
 #define STAR 22
 void print_stage(int *stage, int x, int y)
 {
@@ -178,35 +232,31 @@ void print_stage(int *stage, int x, int y)
     for (j=0; j<y; j++) {
         printf("%d ", j); /* Y axis */
         for (i=0; i<x; i++) {
-            switch (*(stage+j*x+i)) {
-            case 1:
-                printf("\e[31m\e[1m%c ", STAR);
-                //printf("\e[41mR \e[0m ");
-                break;
-            case 2:
-                printf("\e[32m\e[1m%c ", STAR);
-                //printf("\e[42m\e[1mG \e[0m ");
-                break;
-            case 3:
-                printf("\e[33m\e[1m%c ", STAR);
-                //printf("\e[43m\e[1mY \e[0m ");
-                break;
-            case 4:
-                printf("\e[34m\e[1m%c ", STAR);
-                //printf("\e[44m\e[1mB \e[0m ");
-                break;
-            case 5:
-                printf("\e[37m\e[1m%c ", STAR);
-                //printf("\e[47m\e[1mW \e[0m ");
-                break;
-            default:
-                printf("  ");
-            }
+            print_star(*(stage+j*x+i), P_Bright, STAR);
         }
-        printf("\n\e[0m");
+        printf("\n");
     }
 }
 
+void print_group(Star** stars, Group* group, int x, int y)
+{
+    int i, j;
+    printf("  0 1 2 3 4 5 6 7 8 9 \n"); /* X axis */
+    for (j=0; j<y; j++) {
+        printf("%d ", j); /* Y axis */
+        for (i=0; i<x; i++) {
+            if (stars[j*x+i]->group == group)
+                print_star(stars[j*x+i]->color, P_Bright|P_Reverse, STAR);
+            else
+                print_star(stars[j*x+i]->color, P_Bright, STAR);
+        }
+        printf("\n");
+    }
+
+}
+
+
+/* Shell commands */
 SHELL_MK_CMD(print)
 {
 	print_stage((int*)stage_test, 10 ,10);
@@ -214,24 +264,33 @@ SHELL_MK_CMD(print)
 
 SHELL_MK_CMD(select)
 {
-	
+    Star** stars= (Star**)shell->data;
+	print_group(stars, stars[args[0].i + 10*args[1].i]->group, 10, 10);
 }
 
-shell_cmd_t cmds_table[] ={
+shell_cmd_t shell_cmds_table[] ={
     SHELL_CMD(print, "", "Print the (test) stage"),
-    SHELL_CMD(select, "cc", "Select the group including star (x,y)")
+    SHELL_CMD(select, "ii", "Highlite the group where star (x,y) living in")
 };
 
 int main()
 {
+    /* Prepare Star things */
     print_stage((int*)stage_test, 10 ,10);
-    Star **stars = NULL;
-    stars = init_stars((int*)stage_test, 10, 10);
 
-	Map *map = (Map*)malloc(sizeof(Map));
-	assert(map);
-	generate_map(10, 10, map, stars);
+    Star **stars = init_stars((int*)stage_test, 10, 10);
 
-	printf("stars = %p\n", stars);
-    return 0;
+	Map *map = generate_map(stars, 10, 10);
+    
+    /* Launch the shell */
+    shell_t *shell = shell_new();
+    shell->data = (void*)stars;
+    int i;
+    for (i = 0; i < sizeof(shell_cmds_table)/sizeof(shell_cmd_t); i++)
+        shell_register_cmd(shell_cmds_table[i], shell);
+    int ret = shell_run(shell);
+    
+    shell_destroy(shell);
+
+    return ret;
 }
