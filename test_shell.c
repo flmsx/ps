@@ -6,7 +6,7 @@
 
 SHELL_MK_CMD(add) {printf("%d\n",args[0].i+args[1].i);}
 SHELL_MK_CMD(mul) {printf("%d\n",args[0].i*args[1].i);}
-SHELL_MK_CMD(sqrt) {printf("%d\n",sqrt(args[0].i));}
+SHELL_MK_CMD(sqrt) {printf("%f\n",sqrt(args[0].i));}
 
 shell_cmd_t dsp_table[3] ={
     SHELL_CMD(add,"ii","Add two numbers"),
