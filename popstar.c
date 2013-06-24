@@ -11,7 +11,7 @@
  * 5 -> purple/white
  * 0 -> black
  * */
-enum COLORS {RED, GREEN, YELLOW, BLUE, PURPLE};
+enum COLORS {POPED, RED, GREEN, YELLOW, BLUE, PURPLE};
 enum DIRECTIONS {UP, DOWN, LEFT, RIGHT, NONE};
 
 #define MAP_CAPACITY 40
@@ -211,7 +211,7 @@ void destroy_snapshot(Snapshot *st)
     
 }
 
-/* Retrun 0 succeed, otherwise failed */
+/* Retrun 0 if could be poped, otherwise -1 */
 int pop(Star *star, Star **stars, int x, int y)
 {
     Group* group = star->group;
@@ -223,17 +223,20 @@ int pop(Star *star, Star **stars, int x, int y)
         for (j = group->max_y, falling = 0; j>= group->min_y; j--) {
             if (stars[j*x + i]->group == group) {
                 falling++;
-                stars[j*x + i]->color = 0; /* black */
+                //stars[j*x + i]->color = POPED;
             } else {
                 if (falling) {
-                    stars[(j+falling)*x + i]->color = stars[j*x + i]->color;
-                    stars[j*x + i]->color = 0; /* black */
+                    //stars[(j+falling)*x + i]->color = stars[j*x + i]->color;
+					//stars[(j+falling)*x + i]->group = stars[j*x + i]->group;
+					stars[(j+falling)*x + i] = stars[j*x + i];
+                    //stars[j*x + i]->color = POPED;
                 }
             }
         }
         for(; j >= 0; j--) {
-            stars[(j+falling)*x + i]->color = stars[j*x + i]->color;
-            stars[j*x + i]->color = 0; /* black */
+            //stars[(j+falling)*x + i]->color = stars[j*x + i]->color;
+			stars[(j+falling)*x + i] = stars[j*x + i];
+            //stars[j*x + i]->color = POPED;
         }
     }
     return 0;
@@ -282,7 +285,7 @@ void print_star(int color, int style, char shape)
     case 5:
         color_str = "\e[37m";
         break;
-    case 0:
+    case POPED:
         color_str = "\e[30m";
         break;
     default:
