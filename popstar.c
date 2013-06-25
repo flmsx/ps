@@ -17,8 +17,9 @@ enum DIRECTIONS {UP, DOWN, LEFT, RIGHT, NONE};
 #define MAP_CAPACITY 40
 #define MAP_CAPACITY_STEP 5
 typedef struct map_t {
-    int	count;
+    struct star_t **stars;
 	int capacity;
+    int	count; //group count
     struct group_t **groups;
 } Map;
 
@@ -27,9 +28,9 @@ typedef struct map_t {
 typedef struct group_t {
     int id;
     int color;
-    int count;
 	int capacity;
-    int min_x, max_x, min_y, max_y;
+    int count;
+    int min_x, max_x, min_y, max_y; //occupied rectange
     struct star_t **stars;
 } Group;
 
@@ -41,7 +42,7 @@ typedef struct star_t {
     struct group_t *group;
 } Star;
 
-Star star_null = {-1, -1, -1, -1, NULL};
+Star STAR_NULL = {-1, -1, -1, -1, NULL};
 
 typedef struct snapshot_t {
     Star **stars;
@@ -50,10 +51,10 @@ typedef struct snapshot_t {
     Map *map;
 } Snapshot;
 
-#define left(star) ((star->x) ? *(&(star) - 1) : &star_null)
-#define right(star) ((star->x < x - 1) ? *(&(star) + 1) : &star_null)
-#define up(star) ((star->y) ? *(&(star) - x) : &star_null)
-#define down(star) ((star->y < y - 1) ? *(&(star) + x) : &star_null)
+#define left(star) ((star->x) ? *(&(star) - 1) : &STAR_NULL)
+#define right(star) ((star->x < x - 1) ? *(&(star) + 1) : &STAR_NULL)
+#define up(star) ((star->y) ? *(&(star) - x) : &STAR_NULL)
+#define down(star) ((star->y < y - 1) ? *(&(star) + x) : &STAR_NULL)
 
 Star** init_stars(int *stage, int x, int y)
 {
@@ -154,6 +155,7 @@ Map* generate_map(Star **stars, int x, int y)
 
     Map *map = (Map*)malloc(sizeof(Map));
 	assert(map);
+    map->stars = stars;
 
 	init_map(map);
 
@@ -212,33 +214,48 @@ void destroy_snapshot(Snapshot *st)
 }
 
 /* Retrun 0 if could be poped, otherwise -1 */
-int pop(Star *star, Star **stars, int x, int y)
+int pop(Star *star, Map *map, int x, int y)
 {
     Group* group = star->group;
     if (group->count == 1)
         return -1;
+
+    Star **stars = map->stars;
     
     int i, j, falling;
+    
+    //falling the stars 
     for(i = group->min_x; i <= group->max_x; i++) {
-        for (j = group->max_y, falling = 0; j>= group->min_y; j--) {
+        for (j = group->max_y, falling = 0; j >= group->min_y; j--) {
             if (stars[j*x + i]->group == group) {
                 falling++;
-                //stars[j*x + i]->color = POPED;
+                if (up(stars[j*x + i]) == &STAR_NULL) {
+                    stars[j*x +i] = &STAR_NULL;
+                }     
             } else {
                 if (falling) {
-                    //stars[(j+falling)*x + i]->color = stars[j*x + i]->color;
-					//stars[(j+falling)*x + i]->group = stars[j*x + i]->group;
 					stars[(j+falling)*x + i] = stars[j*x + i];
-                    //stars[j*x + i]->color = POPED;
+                    if (up(stars[j*x + i]) == &STAR_NULL) {
+                        stars[j*x +i] = &STAR_NULL;
+                    }
                 }
             }
-        }
+        } 
+        //TO be optimized, since need not check stars on top of NULL stars.
         for(; j >= 0; j--) {
-            //stars[(j+falling)*x + i]->color = stars[j*x + i]->color;
 			stars[(j+falling)*x + i] = stars[j*x + i];
-            //stars[j*x + i]->color = POPED;
+            if (up(stars[j*x + i]) == &STAR_NULL) {
+                stars[j*x +i] = &STAR_NULL;
+            }
         }
     }
+
+    //update everything
+    for(i = group->min_x; i <= group->max_x; i++) {
+        for (j = group->max_y; j >= 0 ; j--) {
+        }
+    }
+
     return 0;
 }
 
@@ -290,7 +307,7 @@ void print_star(int color, int style, char shape)
         break;
     default:
         color_str = "\e[30m";
-        fprintf(stderr, "Unkonw color! Black displayed. \n");
+        //fprintf(stderr, "Unkonw color! Black displayed. \n");
     }
     if (style & P_Bright)
         strcat(format_str, bright_style_str);
@@ -357,15 +374,15 @@ SHELL_MK_CMD(print)
 
 SHELL_MK_CMD(select)
 {
-    Star** stars= (Star**)shell->data;
+    Star** stars= ((Map*)shell->data)->stars;
 	print_group(stars, stars[args[0].i + 10*args[1].i]->group, 10, 10);
 }
 
 SHELL_MK_CMD(pop)
 {
-    Star** stars= (Star**)shell->data;
-	pop(stars[args[0].i + 10*args[1].i], stars, 10, 10);
-    print_stars(stars, 10, 10);
+    Map *map= (Map*)shell->data;
+	pop(map->stars[args[0].i + 10*args[1].i], map, 10, 10);
+    print_stars(map->stars, 10, 10);
 }
 
 shell_cmd_t shell_cmds_table[] = {
@@ -385,7 +402,7 @@ int main()
     
     /* Launch the shell */
     shell_t *shell = shell_new();
-    shell->data = (void*)stars;
+    shell->data = (void*)map;
 
     int i;
     for (i = 0; i < sizeof(shell_cmds_table)/sizeof(shell_cmd_t); i++)
