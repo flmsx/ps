@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdbool.h>
 #include "shell.h"
 
 /* 1 -> red 
@@ -40,6 +41,7 @@ typedef struct star_t {
     int x;
     int y;
     struct group_t *group;
+    bool dirty; //not update after falling
 } Star;
 
 Star STAR_NULL = {-1, -1, -1, -1, NULL};
@@ -217,42 +219,57 @@ void destroy_snapshot(Snapshot *st)
 int pop(Star *star, Map *map, int x, int y)
 {
     Group* group = star->group;
-    if (group->count == 1)
+    if (group->count <= 1)
         return -1;
 
     Star **stars = map->stars;
     
     int i, j, falling;
     
-    //falling the stars 
+    /* falling the stars , nothing update */
     for(i = group->min_x; i <= group->max_x; i++) {
         for (j = group->max_y, falling = 0; j >= group->min_y; j--) {
             if (stars[j*x + i]->group == group) {
                 falling++;
                 if (up(stars[j*x + i]) == &STAR_NULL) {
                     stars[j*x +i] = &STAR_NULL;
+                    //goto next i
+                    j = -1;
+                    break;
                 }     
             } else {
                 if (falling) {
 					stars[(j+falling)*x + i] = stars[j*x + i];
                     if (up(stars[j*x + i]) == &STAR_NULL) {
                         stars[j*x +i] = &STAR_NULL;
+                        j = -1;
+                        break;
                     }
                 }
             }
-        } 
-        //TO be optimized, since need not check stars on top of NULL stars.
+        }
         for(; j >= 0; j--) {
 			stars[(j+falling)*x + i] = stars[j*x + i];
             if (up(stars[j*x + i]) == &STAR_NULL) {
                 stars[j*x +i] = &STAR_NULL;
+                break;
             }
         }
+        
     }
 
-    //update everything
+    /* update everything to correct the map
+     * TODO: consider the *NULL* columns */
+    Star *s;
     for(i = group->min_x; i <= group->max_x; i++) {
         for (j = group->max_y; j >= 0 ; j--) {
+            s = stars[j*x +i];
+            if (s == &STAR_NULL)
+                break;
+            if (s->y < j) { //will cause group changing
+                s->y = j;
+                
+            }
         }
     }
 
