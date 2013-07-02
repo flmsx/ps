@@ -42,6 +42,7 @@ typedef struct star_t {
     int y;
     struct group_t *group;
     struct list_node list_group;
+    struct list_node list_falling;
     bool dirty; //not update after falling
 } Star;
 
@@ -212,9 +213,10 @@ int pop(Star *star, Map *map, int x, int y)
 
     Star **stars = map->stars;
     
-    int i, j, falling;
-    
-    /* falling the stars , nothing update */
+    int i, j, old_j, falling;
+
+    LIST_HEAD(falling_head);
+    /* falling the stars , adding the changing stars to a list */
     for(i = group->min_x; i <= group->max_x; i++) {
         for (j = group->max_y, falling = 0; j >= group->min_y; j--) {
             if (stars[j*x + i]->group == group) {
@@ -223,25 +225,29 @@ int pop(Star *star, Map *map, int x, int y)
                     stars[j*x +i] = &STAR_NULL;
                     //goto next i
                     j = -1;
-                    break;
-                }     
+                } else 
+                    stars[j*x +i] = &STAR_NULL;
             } else {
                 if (falling) {
 					stars[(j+falling)*x + i] = stars[j*x + i];
-                    if (up(stars[j*x + i]) == &STAR_NULL) {
-                        stars[j*x +i] = &STAR_NULL;
+                    old_j = j;
+                    if (up(stars[j*x + i]) == &STAR_NULL) 
                         j = -1;
-                        break;
-                    }
+                    stars[old_j*x + i] == &STAR_NULL;
+                    //stars[(old_j+falling)*x + i]->y = old_j + falling;
+                    //list_add_tail(&falling_head, &(stars[(old_j+falling)*x + i]->list_falling));
                 }
             }
         }
         for(; j >= 0; j--) {
+            //assert(stars[(j+falling)*x + i] == &STAR_NULL);
 			stars[(j+falling)*x + i] = stars[j*x + i];
-            if (up(stars[j*x + i]) == &STAR_NULL) {
-                stars[j*x +i] = &STAR_NULL;
-                break;
-            }
+            old_j = j;
+            if (up(stars[j*x + i]) == &STAR_NULL) 
+                j = -1;
+            stars[old_j*x +i] = &STAR_NULL;
+            //stars[(old_j+falling)*x + i]->y = old_j + falling;
+            //list_add_tail(&falling_head, &(stars[(old_j+falling)*x + i]->list_falling));
         }
         
     }
@@ -249,16 +255,8 @@ int pop(Star *star, Map *map, int x, int y)
     /* update everything to correct the map
      * TODO: consider the *NULL* columns */
     Star *s;
-    for(i = group->min_x; i <= group->max_x; i++) {
-        for (j = group->max_y; j >= 0 ; j--) {
-            s = stars[j*x +i];
-            if (s == &STAR_NULL)
-                break;
-            if (s->y < j) { //will cause group changing
-                s->y = j;
+    list_for_each(&falling_head, s, list_falling) {
                 
-            }
-        }
     }
 
     return 0;

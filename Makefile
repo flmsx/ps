@@ -14,7 +14,7 @@ popstar: $(POPSTAROBJS)
 
 shell.o: shell.h
 test_shell.o: shell.h
-popstar.o: shell.h
+popstar.o: shell.h list.h
 
 clean:
 	rm -f *.o
