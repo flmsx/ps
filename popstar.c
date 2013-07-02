@@ -1,9 +1,14 @@
+/* author fengmeng.linux@gmail.com
+ * remarks Copyright (c) 2013. All rights reserved
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
 #include "shell.h"
+#include "list.h"
 
 /* 1 -> red 
  * 2 -> green
@@ -15,24 +20,19 @@
 enum COLORS {POPED, RED, GREEN, YELLOW, BLUE, PURPLE};
 enum DIRECTIONS {UP, DOWN, LEFT, RIGHT, NONE};
 
-#define MAP_CAPACITY 40
-#define MAP_CAPACITY_STEP 5
 typedef struct map_t {
     struct star_t **stars;
-	int capacity;
     int	count; //group count
-    struct group_t **groups;
+    struct list_head groups;
 } Map;
 
-#define GROUP_CAPACITY 20
-#define GROUP_CAPACITY_STEP 5
 typedef struct group_t {
     int id;
     int color;
-	int capacity;
     int count;
     int min_x, max_x, min_y, max_y; //occupied rectange
-    struct star_t **stars;
+    struct list_head stars;
+    struct list_node list_map;
 } Group;
 
 typedef struct star_t {
@@ -41,6 +41,7 @@ typedef struct star_t {
     int x;
     int y;
     struct group_t *group;
+    struct list_node list_group;
     bool dirty; //not update after falling
 } Star;
 
@@ -90,21 +91,14 @@ static void init_group(Group *group)
     group->count = 0;
     group->color = -1;
     group->min_x = group->max_x = group->min_y = group->max_y = -1;
-	group->capacity = GROUP_CAPACITY;
-	group->stars = NULL;
-	group->stars = (Star**)calloc(GROUP_CAPACITY, sizeof(Star*));
-	assert(group->stars);
+	list_head_init(&(group->stars));
 }
 
-#define add_to_group(grp, star)																	\
-	do {																						\
-		star->group = grp;																		\
-		if (++grp->count > grp->capacity) {														\
-			grp->capacity += GROUP_CAPACITY_STEP;												\
-			grp->stars = (Star**)realloc(grp->stars, grp->capacity * sizeof(Star*));			\
-			assert(grp->stars);																	\
-		}																						\
-		grp->stars[star->group->count-1] = star;												\
+#define add_to_group(grp, star)								\
+	do {												    \
+		star->group = grp;                                  \
+        list_add_tail(&(grp->stars), &(star->list_group));  \
+        grp->count++;                                       \
 	} while (0)
 
 inline void find_next_group_member(Star **stars, int id, int x, int y)
@@ -144,9 +138,7 @@ inline void find_next_group_member(Star **stars, int id, int x, int y)
 static void init_map(Map *map)
 {
 	map->count = 0;
-	map->capacity = MAP_CAPACITY;
-	map->groups = (Group**)calloc(MAP_CAPACITY, sizeof(Group*));
-    assert(map->groups);
+    list_head_init(&(map->groups));
 }
 
 Map* generate_map(Star **stars, int x, int y)
@@ -173,12 +165,8 @@ Map* generate_map(Star **stars, int x, int y)
                 group->min_x = group->max_x = i;
                 group->min_y = group->max_y = j;
                 stars[j*x + i]->group = group;
-				if (++map->count > map->capacity) {
-					map->capacity += MAP_CAPACITY_STEP;
-					map->groups = (Group**)realloc(map->groups, map->capacity * sizeof(Group*));
-					assert(map->groups);
-				}
-				map->groups[map->count-1] = group;
+                list_add_tail(&(map->groups), &(group->list_map));
+                map->count++;
 				find_next_group_member(stars, j*x + i, x, y);
             }
         }
