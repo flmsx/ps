@@ -208,7 +208,7 @@ void destroy_snapshot(Snapshot *st)
 int pop(Star *star, Map *map, int x, int y)
 {
     Group* group = star->group;
-    if (group->count <= 1)
+    if (group->count <= 1)x
         return -1;
 
     Star **stars = map->stars;
@@ -221,21 +221,19 @@ int pop(Star *star, Map *map, int x, int y)
         for (j = group->max_y, falling = 0; j >= group->min_y; j--) {
             if (stars[j*x + i]->group == group) {
                 falling++;
-                if (up(stars[j*x + i]) == &STAR_NULL) {
-                    stars[j*x +i] = &STAR_NULL;
-                    //goto next i
-                    j = -1;
-                } else 
-                    stars[j*x +i] = &STAR_NULL;
+				old_j = j;
+                if (up(stars[j*x + i]) == &STAR_NULL)
+                    j = -1; //goto next i
+                stars[old_j*x +i] = &STAR_NULL;
             } else {
                 if (falling) {
 					stars[(j+falling)*x + i] = stars[j*x + i];
                     old_j = j;
                     if (up(stars[j*x + i]) == &STAR_NULL) 
                         j = -1;
-                    stars[old_j*x + i] == &STAR_NULL;
-                    //stars[(old_j+falling)*x + i]->y = old_j + falling;
-                    //list_add_tail(&falling_head, &(stars[(old_j+falling)*x + i]->list_falling));
+                    stars[old_j*x + i] = &STAR_NULL;
+                    stars[(old_j+falling)*x + i]->y = old_j + falling;
+                    list_add_tail(&falling_head, &stars[(old_j+falling)*x + i]->list_falling);
                 }
             }
         }
@@ -246,8 +244,8 @@ int pop(Star *star, Map *map, int x, int y)
             if (up(stars[j*x + i]) == &STAR_NULL) 
                 j = -1;
             stars[old_j*x +i] = &STAR_NULL;
-            //stars[(old_j+falling)*x + i]->y = old_j + falling;
-            //list_add_tail(&falling_head, &(stars[(old_j+falling)*x + i]->list_falling));
+            stars[(old_j+falling)*x + i]->y = old_j + falling;
+            list_add_tail(&falling_head, &stars[(old_j+falling)*x + i]->list_falling);
         }
         
     }
