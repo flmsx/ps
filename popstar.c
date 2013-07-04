@@ -24,6 +24,8 @@ typedef struct map_t {
     struct star_t **stars;
     int	count; //group count
     struct list_head groups;
+    int poped_count;
+    struct list_head poped;
 } Map;
 
 typedef struct group_t {
@@ -33,6 +35,7 @@ typedef struct group_t {
     int min_x, max_x, min_y, max_y; //occupied rectange
     struct list_head stars;
     struct list_node list_map;
+    bool dirty;
 } Group;
 
 typedef struct star_t {
@@ -42,7 +45,9 @@ typedef struct star_t {
     int y;
     struct group_t *group;
     struct list_node list_group;
+    struct list_node list_regroup;
     struct list_node list_falling;
+    bool regrouped;
     bool dirty; //not update after falling
 } Star;
 
@@ -55,10 +60,10 @@ typedef struct snapshot_t {
     Map *map;
 } Snapshot;
 
-#define left(star) ((star->x) ? *(&(star) - 1) : &STAR_NULL)
-#define right(star) ((star->x < x - 1) ? *(&(star) + 1) : &STAR_NULL)
-#define up(star) ((star->y) ? *(&(star) - x) : &STAR_NULL)
-#define down(star) ((star->y < y - 1) ? *(&(star) + x) : &STAR_NULL)
+#define left(star, stars) ((star->x) ? *(stars + star->y*x + star->x - 1) : &STAR_NULL)
+#define right(star, stars) ((star->x < x - 1) ? *(stars + star->y*x + star->x + 1) : &STAR_NULL)
+#define up(star, stars) ((star->y) ? *(stars + (star->y-1)*x + star->x) : &STAR_NULL)
+#define down(star, stars) ((star->y < y - 1) ? *(stars + (star->y+1)*x + star->x) : &STAR_NULL)
 
 Star** init_stars(int *stage, int x, int y)
 {
@@ -74,6 +79,8 @@ Star** init_stars(int *stage, int x, int y)
             stars[j*x+i]->y = j;
             stars[j*x+i]->x = i;
             stars[j*x+i]->group = NULL;
+            stars[j*x+i]->dirty = false;
+            stars[j*x+i]->regrouped = false;
         }
     }
 	return stars;
@@ -93,6 +100,7 @@ static void init_group(Group *group)
     group->color = -1;
     group->min_x = group->max_x = group->min_y = group->max_y = -1;
 	list_head_init(&(group->stars));
+    group->dirty = false;
 }
 
 #define add_to_group(grp, star)								\
@@ -102,44 +110,34 @@ static void init_group(Group *group)
         grp->count++;                                       \
 	} while (0)
 
-inline void find_next_group_member(Star **stars, int id, int x, int y)
+static inline void find_next_group_member(Star **stars, int id, int x, int y)
 {
-    Star *left, *right, *down, *up;
-    left = left(stars[id]); 
-    right = right(stars[id]);
-	down = down(stars[id]);
-	up = up(stars[id]);
+    Star *neighbors[] = {
+        left(stars[id], stars),
+        right(stars[id], stars),
+	    down(stars[id], stars),
+	    up(stars[id], stars),
+        NULL
+    };
+    Star **s;
+
     Group *group = stars[id]->group;
 
-    if (!right->group && right->color == stars[id]->color) {
-        add_to_group(group, right);
-        if (right->x > group->max_x) group->max_x = right->x;
-		find_next_group_member(stars, right->id, x, y);
+    for (s = neighbors; *s; s++) {
+        if (!(*s)->group && (*s)->color == stars[id]->color) {
+            add_to_group(group, (*s));
+            if ((*s)->x > group->max_x) group->max_x = (*s)->x;
+	    	find_next_group_member(stars, (*s)->id, x, y);
+        }
     }
-
-	if (!down->group && down->color == stars[id]->color) {
-        add_to_group(group, down);
-        if (down->y > group->max_y) group->max_y = down->y;
-		find_next_group_member(stars, down->id, x, y);
-    }
-
-	if (!left->group && left->color == stars[id]->color) {
-        add_to_group(group, left);
-        if (left->x < group->min_x) group->min_x = left->x;
-		find_next_group_member(stars, left->id, x, y);
-    }
-
-	if (!up->group && up->color == stars[id]->color) {
-        add_to_group(group, up);
-        if (up->y < group->min_y) group->min_y = up->y;
-		find_next_group_member(stars, up->id, x, y);
-    }  
 }
 
 static void init_map(Map *map)
 {
 	map->count = 0;
+	map->poped_count = 0;
     list_head_init(&(map->groups));
+    list_head_init(&(map->poped));
 }
 
 Map* generate_map(Star **stars, int x, int y)
@@ -204,63 +202,129 @@ void destroy_snapshot(Snapshot *st)
     
 }
 
-/* Retrun 0 if could be poped, otherwise -1 */
-int pop(Star *star, Map *map, int x, int y)
+#define add_to_group_dirty(grp, star)								\
+	do {												    \
+		star->group = grp;                                  \
+        list_add_tail(&(grp->stars), &(star->list_group));  \
+        grp->count++;                                       \
+	}
+
+/*static inline void find_next_group_member_dirty(Star *star, struct list_head h, Star **stars, int x, int y)
+{
+    Star *neighbors[] = {
+        left(star, stars),
+        right(star, stars),
+	    down(star, stars),
+	    up(star, stars),
+        NULL
+    };
+
+    if (right->!right->regrouped && right->color == star->color) {
+        add_to_group(group, right);
+        if (right->x > group->max_x) group->max_x = right->x;
+		find_next_group_member(stars, right->id, x, y);
+    }
+
+	if (!down->group && down->color == star->color) {
+        add_to_group(group, down);
+        if (down->y > group->max_y) group->max_y = down->y;
+		find_next_group_member(stars, down->id, x, y);
+    }
+
+	if (!left->group && left->color == star->color) {
+        add_to_group(group, left);
+        if (left->x < group->min_x) group->min_x = left->x;
+		find_next_group_member(stars, left->id, x, y);
+    }
+
+	if (!up->group && up->color == star->color) {
+        add_to_group(group, up);
+        if (up->y < group->min_y) group->min_y = up->y;
+		find_next_group_member(stars, up->id, x, y);
+    }  
+}*/
+
+
+/* Retrun true if could be poped, otherwise false */
+bool pop(Star *star, Map *map, int x, int y)
 {
     Group* group = star->group;
-    if (group->count <= 1)x
-        return -1;
+    if (group->count <= 1)
+        return false;
 
     Star **stars = map->stars;
     
-    int i, j, old_j, falling;
+    int i, j, j_save, falling;
 
     LIST_HEAD(falling_head);
     /* falling the stars , adding the changing stars to a list */
     for(i = group->min_x; i <= group->max_x; i++) {
-        for (j = group->max_y, falling = 0; j >= group->min_y; j--) {
+        for (j = group->max_y, falling = 0; j >= group->min_y; j--) { //inner
             if (stars[j*x + i]->group == group) {
                 falling++;
-				old_j = j;
-                if (up(stars[j*x + i]) == &STAR_NULL)
+				j_save = j;
+                if (up(stars[j*x + i], stars) == &STAR_NULL)
                     j = -1; //goto next i
-                stars[old_j*x +i] = &STAR_NULL;
+                stars[j_save*x +i] = &STAR_NULL;
             } else {
                 if (falling) {
 					stars[(j+falling)*x + i] = stars[j*x + i];
-                    old_j = j;
-                    if (up(stars[j*x + i]) == &STAR_NULL) 
+                    j_save = j;
+                    if (up(stars[j*x + i], stars) == &STAR_NULL) 
                         j = -1;
-                    stars[old_j*x + i] = &STAR_NULL;
-                    stars[(old_j+falling)*x + i]->y = old_j + falling;
-                    list_add_tail(&falling_head, &stars[(old_j+falling)*x + i]->list_falling);
+                    stars[j_save*x + i] = &STAR_NULL;
+                    stars[(j_save+falling)*x + i]->y = j_save + falling;
+                    stars[(j_save+falling)*x + i]->dirty = true;
+                    list_add_tail(&falling_head, &stars[(j_save+falling)*x + i]->list_falling);
                 }
             }
         }
-        for(; j >= 0; j--) {
+        for(; j >= 0; j--) { //outer
             //assert(stars[(j+falling)*x + i] == &STAR_NULL);
 			stars[(j+falling)*x + i] = stars[j*x + i];
-            old_j = j;
-            if (up(stars[j*x + i]) == &STAR_NULL) 
+            j_save = j;
+            if (up(stars[j*x + i], stars) == &STAR_NULL) 
                 j = -1;
-            stars[old_j*x +i] = &STAR_NULL;
-            stars[(old_j+falling)*x + i]->y = old_j + falling;
-            list_add_tail(&falling_head, &stars[(old_j+falling)*x + i]->list_falling);
+            stars[j_save*x +i] = &STAR_NULL;
+            stars[(j_save+falling)*x + i]->y = j_save + falling;
+            stars[(j_save+falling)*x + i]->dirty = true;
+            stars[(j_save+falling)*x + i]->group->dirty = true;
+            list_add_tail(&falling_head, &stars[(j_save+falling)*x + i]->list_falling);
         }
-        
     }
+
+    /* move the poped group to poped list */
+    map->count--;
+    list_del_from(&map->groups, &group->list_map);
+    map->poped_count++;
+    list_add_tail(&map->poped, &group->list_map);
 
     /* update everything to correct the map
      * TODO: consider the *NULL* columns */
+    
+    struct regroup_t {
+        struct list_node list_regroup;
+        int count;
+        struct list_head stars;
+    };
+    LIST_HEAD(regroup_list);
+    int regroup_count = 0;
+
+    Group *g;
     Star *s;
-    list_for_each(&falling_head, s, list_falling) {
-                
+    list_for_each(&map->groups, g, list_map) {
+        if (!g->dirty) continue;
+        /* re-group the stars in the dirty group, ignore the outside */
+        list_for_each(&g->stars, s, list_group) {
+            if(s->regrouped) continue;
+            struct regroup_t *reg;
+        }
     }
 
-    return 0;
+    return true;
 }
 
-int stage_test[][10] = {
+int stage_test0[][10] = {
 {1, 2, 2, 1, 3, 1, 2, 4, 2, 4},
 {2, 2, 2, 4, 3, 2, 5, 2, 5, 1}, 
 {3, 3, 4, 5, 5, 2, 2, 5, 2, 1}, 
@@ -272,6 +336,33 @@ int stage_test[][10] = {
 {2, 2, 4, 2, 2, 3, 1, 4, 2, 3}, 
 {3, 4, 2, 4, 1, 2, 2, 3, 1, 4}
 };
+
+int stage_test1[][10] = {
+{1, 2, 2, 1, 3, 1, 2, 4, 2, 4},
+{2, 2, 2, 4, 3, 2, 5, 2, 5, 1}, 
+{3, 3, 4, 5, 5, 2, 2, 5, 2, 1}, 
+{1, 4, 3, 3, 3, 2, 5, 1, 1, 5}, 
+{2, 5, 4, 4, 4, 2, 3, 1, 1, 4}, 
+{1, 1, 4, 5, 4, 4, 4, 2, 3, 5}, 
+{1, 5, 4, 4, 1, 1, 1, 2, 2, 1}, 
+{4, 1, 3, 2, 2, 2, 2, 4, 5, 2}, 
+{2, 2, 4, 2, 2, 3, 1, 4, 2, 3}, 
+{3, 4, 2, 4, 1, 2, 2, 3, 1, 4}
+};
+
+int stage_test[][10] = {
+{1, 2, 2, 1, 3, 1, 2, 4, 2, 4},
+{2, 2, 2, 4, 3, 2, 5, 2, 5, 1}, 
+{3, 3, 4, 5, 5, 2, 2, 5, 2, 1}, 
+{1, 3, 3, 3, 3, 2, 5, 1, 1, 5}, 
+{2, 3, 4, 4, 4, 2, 3, 1, 1, 4}, 
+{1, 3, 4, 5, 4, 4, 4, 2, 3, 5}, 
+{1, 3, 4, 4, 1, 1, 1, 2, 2, 1}, 
+{4, 3, 3, 2, 2, 2, 2, 4, 5, 2}, 
+{2, 2, 4, 2, 2, 3, 1, 4, 2, 3}, 
+{3, 4, 2, 4, 1, 2, 2, 3, 1, 4}
+};
+
 
 typedef enum {
     P_Bright = 0x00000001,

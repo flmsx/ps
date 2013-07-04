@@ -2,7 +2,7 @@ SHELLOBJS = test_shell.o shell.o
 POPSTAROBJS = popstar.o shell.o
 
 CC = gcc
-CFLAGS = -g
+CFLAGS = -g -Winline
 
 all: shell popstar
 
