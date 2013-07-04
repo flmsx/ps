@@ -65,6 +65,13 @@ typedef struct snapshot_t {
 #define up(star, stars) ((star->y) ? *(stars + (star->y-1)*x + star->x) : &STAR_NULL)
 #define down(star, stars) ((star->y < y - 1) ? *(stars + (star->y+1)*x + star->x) : &STAR_NULL)
 
+/*
+#define left_dirty(star) ((star->x) ? *(&(star) - 1) : &STAR_NULL)
+#define right_dirty(star) ((star->x < x - 1) ? *(&(star) + 1) : &STAR_NULL)
+#define up_dirty(star) ((star->y) ? *(&(star) - x) : &STAR_NULL)
+#define down_dirty(star) ((star->y < y - 1) ? *(&(star) + x) : &STAR_NULL)
+*/
+
 Star** init_stars(int *stage, int x, int y)
 {
     int i, j;
@@ -126,7 +133,14 @@ static inline void find_next_group_member(Star **stars, int id, int x, int y)
     for (s = neighbors; *s; s++) {
         if (!(*s)->group && (*s)->color == stars[id]->color) {
             add_to_group(group, (*s));
-            if ((*s)->x > group->max_x) group->max_x = (*s)->x;
+            if ((*s)->x > group->max_x) 
+				group->max_x = (*s)->x;
+			else if ((*s)->x < group->min_x)
+				group->min_x = (*s)->x;
+			if ((*s)->y > group->max_y) 
+				group->max_y = (*s)->y;
+			else if ((*s)->y < group->min_y)
+				group->min_y = (*s)->y;
 	    	find_next_group_member(stars, (*s)->id, x, y);
         }
     }
@@ -164,6 +178,7 @@ Map* generate_map(Star **stars, int x, int y)
                 group->min_x = group->max_x = i;
                 group->min_y = group->max_y = j;
                 stars[j*x + i]->group = group;
+				list_add_tail(&group->stars, &stars[j*x + i]->list_group);
                 list_add_tail(&(map->groups), &(group->list_map));
                 map->count++;
 				find_next_group_member(stars, j*x + i, x, y);
@@ -202,16 +217,16 @@ void destroy_snapshot(Snapshot *st)
     
 }
 
-#define add_to_group_dirty(grp, star)								\
-	do {												    \
-		star->group = grp;                                  \
-        list_add_tail(&(grp->stars), &(star->list_group));  \
-        grp->count++;                                       \
-	}
 
-/*static inline void find_next_group_member_dirty(Star *star, struct list_head h, Star **stars, int x, int y)
+struct regroup_t {
+        struct list_node list_regroup;
+        int count;
+        struct list_head head_stars;
+    };
+
+static inline void find_next_group_member_in_dirty_group(Star *star, struct list_head *h, Star **stars, int x, int y)
 {
-    Star *neighbors[] = {
+	Star *neighbors[] = {
         left(star, stars),
         right(star, stars),
 	    down(star, stars),
@@ -219,31 +234,19 @@ void destroy_snapshot(Snapshot *st)
         NULL
     };
 
-    if (right->!right->regrouped && right->color == star->color) {
-        add_to_group(group, right);
-        if (right->x > group->max_x) group->max_x = right->x;
-		find_next_group_member(stars, right->id, x, y);
+    Star **s;
+
+    for (s = neighbors; *s; s++) {
+        if ( (*s)->group == star->group
+				&& !(*s)->regrouped 
+				&& (*s)->color == star->color) {
+			list_add_tail(h, &(*s)->list_regroup);
+			container_of(h, struct regroup_t, head_stars)->count++;
+			(*s)->regrouped = true;
+	    	find_next_group_member_in_dirty_group(*s, h, stars, x, y);
+        }
     }
-
-	if (!down->group && down->color == star->color) {
-        add_to_group(group, down);
-        if (down->y > group->max_y) group->max_y = down->y;
-		find_next_group_member(stars, down->id, x, y);
-    }
-
-	if (!left->group && left->color == star->color) {
-        add_to_group(group, left);
-        if (left->x < group->min_x) group->min_x = left->x;
-		find_next_group_member(stars, left->id, x, y);
-    }
-
-	if (!up->group && up->color == star->color) {
-        add_to_group(group, up);
-        if (up->y < group->min_y) group->min_y = up->y;
-		find_next_group_member(stars, up->id, x, y);
-    }  
-}*/
-
+}
 
 /* Retrun true if could be poped, otherwise false */
 bool pop(Star *star, Map *map, int x, int y)
@@ -275,6 +278,7 @@ bool pop(Star *star, Map *map, int x, int y)
                     stars[j_save*x + i] = &STAR_NULL;
                     stars[(j_save+falling)*x + i]->y = j_save + falling;
                     stars[(j_save+falling)*x + i]->dirty = true;
+            		stars[(j_save+falling)*x + i]->group->dirty = true;
                     list_add_tail(&falling_head, &stars[(j_save+falling)*x + i]->list_falling);
                 }
             }
@@ -283,7 +287,7 @@ bool pop(Star *star, Map *map, int x, int y)
             //assert(stars[(j+falling)*x + i] == &STAR_NULL);
 			stars[(j+falling)*x + i] = stars[j*x + i];
             j_save = j;
-            if (up(stars[j*x + i], stars) == &STAR_NULL) 
+            if (up(stars[j*x + i], stars) == &STAR_NULL)
                 j = -1;
             stars[j_save*x +i] = &STAR_NULL;
             stars[(j_save+falling)*x + i]->y = j_save + falling;
@@ -302,23 +306,28 @@ bool pop(Star *star, Map *map, int x, int y)
     /* update everything to correct the map
      * TODO: consider the *NULL* columns */
     
-    struct regroup_t {
-        struct list_node list_regroup;
-        int count;
-        struct list_head stars;
-    };
     LIST_HEAD(regroup_list);
-    int regroup_count = 0;
+    int regroup_count;
 
     Group *g;
     Star *s;
     list_for_each(&map->groups, g, list_map) {
         if (!g->dirty) continue;
-        /* re-group the stars in the dirty group, ignore the outside */
+        
+		/* re-group the stars in the dirty group, ignore the outside */
+		regroup_count = 0;
         list_for_each(&g->stars, s, list_group) {
             if(s->regrouped) continue;
-            struct regroup_t *reg;
+            struct regroup_t *regrp = (struct regroup_t *)malloc(sizeof(struct regroup_t));
+			assert(regrp);
+			regrp->count = 0;
+			list_head_init(&regrp->head_stars);
+			find_next_group_member_in_dirty_group(s, &regrp->head_stars, stars, x, y);
+			list_add(&regroup_list, &regrp->list_regroup);
+			regroup_count++;
         }
+		//printf("group_id = %d, regroup_count = %d\n", g->id, regroup_count);
+		printf("group_id = %d, (%d, %d), regroup_count = %d\n", g->id, (list_top(&g->stars, Star, list_group))->x, (list_top(&g->stars, Star, list_group))->y, regroup_count);
     }
 
     return true;
