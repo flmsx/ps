@@ -10,6 +10,11 @@
 #include "shell.h"
 #include "list.h"
 
+#define VERBOSE 1
+/*BUG: This is only work in GCC, other compiler not tested */
+#define VERBOSE_PRINT(fmt, ...) \
+    do { if (VERBOSE) printf(fmt, ##__VA_ARGS__);} while (0)
+
 /* 1 -> red 
  * 2 -> green
  * 3 -> yellow
@@ -24,8 +29,10 @@ typedef struct map_t {
     struct star_t **stars;
     int	count; //group count
     struct list_head groups;
-    int poped_count;
-    struct list_head poped;
+    int pops_count;
+    struct list_head pops;
+    int regroups_count;
+    struct list_head regroups;
 } Map;
 
 typedef struct group_t {
@@ -47,8 +54,8 @@ typedef struct star_t {
     struct list_node list_group;
     struct list_node list_regroup;
     struct list_node list_falling;
-    bool regrouped;
     bool dirty; //not update after falling
+    bool regrouped; //only effective when in dirty group
 } Star;
 
 Star STAR_NULL = {-1, -1, -1, -1, NULL};
@@ -133,7 +140,7 @@ static inline void find_next_group_member(Star **stars, int id, int x, int y)
     for (s = neighbors; *s; s++) {
         if (!(*s)->group && (*s)->color == stars[id]->color) {
             add_to_group(group, (*s));
-            if ((*s)->x > group->max_x) 
+            if ((*s)->x > group->max_x)
 				group->max_x = (*s)->x;
 			else if ((*s)->x < group->min_x)
 				group->min_x = (*s)->x;
@@ -149,9 +156,11 @@ static inline void find_next_group_member(Star **stars, int id, int x, int y)
 static void init_map(Map *map)
 {
 	map->count = 0;
-	map->poped_count = 0;
+	map->pops_count = 0;
+	map->regroups_count = 0;
     list_head_init(&(map->groups));
-    list_head_init(&(map->poped));
+    list_head_init(&(map->pops));
+    list_head_init(&(map->regroups));
 }
 
 Map* generate_map(Star **stars, int x, int y)
@@ -217,12 +226,18 @@ void destroy_snapshot(Snapshot *st)
     
 }
 
+/* Regroup has same layout as Group, but some member have diffrent meanings, see above */
+typedef struct regroup_t {
+    int id;
+    int color;
+    int count;
+    int min_x, max_x, min_y, max_y; //occupied rectange
+    struct list_head head_stars;
+    struct list_node list_regroup;
+    bool dirty; //has dirty star(s)
+} Regroup;
 
-struct regroup_t {
-        struct list_node list_regroup;
-        int count;
-        struct list_head head_stars;
-    };
+//typedef Group Regroup;
 
 static inline void find_next_group_member_in_dirty_group(Star *star, struct list_head *h, Star **stars, int x, int y)
 {
@@ -234,14 +249,23 @@ static inline void find_next_group_member_in_dirty_group(Star *star, struct list
         NULL
     };
 
+    Regroup *regrp = container_of(h, Regroup, head_stars);
     Star **s;
-
     for (s = neighbors; *s; s++) {
         if ( (*s)->group == star->group
 				&& !(*s)->regrouped 
 				&& (*s)->color == star->color) {
 			list_add_tail(h, &(*s)->list_regroup);
-			container_of(h, struct regroup_t, head_stars)->count++;
+			regrp->count++;
+            if ((*s)->x > regrp->max_x)
+				regrp->max_x = (*s)->x;
+			else if ((*s)->x < regrp->min_x)
+				regrp->min_x = (*s)->x;
+			if ((*s)->y > regrp->max_y) 
+				regrp->max_y = (*s)->y;
+			else if ((*s)->y < regrp->min_y)
+				regrp->min_y = (*s)->y;
+            if ((*s)->dirty) regrp->dirty = true;
 			(*s)->regrouped = true;
 	    	find_next_group_member_in_dirty_group(*s, h, stars, x, y);
         }
@@ -300,34 +324,38 @@ bool pop(Star *star, Map *map, int x, int y)
     /* move the poped group to poped list */
     map->count--;
     list_del_from(&map->groups, &group->list_map);
-    map->poped_count++;
-    list_add_tail(&map->poped, &group->list_map);
+    map->pops_count++;
+    list_add_tail(&map->pops, &group->list_map);
 
     /* update everything to correct the map
      * TODO: consider the *NULL* columns */
-    
-    LIST_HEAD(regroup_list);
-    int regroup_count;
-
     Group *g;
     Star *s;
+    int regroup_count;
+    VERBOSE_PRINT("\e[32mgroup id|            (x,y)| regroup count|    \n\e[0m");
     list_for_each(&map->groups, g, list_map) {
         if (!g->dirty) continue;
         
 		/* re-group the stars in the dirty group, ignore the outside */
-		regroup_count = 0;
+		//BUG: regroup_count = 0;
         list_for_each(&g->stars, s, list_group) {
             if(s->regrouped) continue;
-            struct regroup_t *regrp = (struct regroup_t *)malloc(sizeof(struct regroup_t));
+
+            Regroup *regrp = (Regroup*)malloc(sizeof(Regroup));
 			assert(regrp);
-			regrp->count = 0;
-			list_head_init(&regrp->head_stars);
+            assert(sizeof(Regroup) == sizeof(Group));
+            init_group((Group*)regrp);
+
 			find_next_group_member_in_dirty_group(s, &regrp->head_stars, stars, x, y);
-			list_add(&regroup_list, &regrp->list_regroup);
-			regroup_count++;
+			list_add(&map->regroups, &regrp->list_regroup);
+			map->regroups_count++;
         }
-		//printf("group_id = %d, regroup_count = %d\n", g->id, regroup_count);
-		printf("group_id = %d, (%d, %d), regroup_count = %d\n", g->id, (list_top(&g->stars, Star, list_group))->x, (list_top(&g->stars, Star, list_group))->y, regroup_count);
+		VERBOSE_PRINT("      %2d| (%d, %d) => (%d, %d)|             %d|\n",
+                g->id,
+                list_top(&g->stars, Star, list_group)->id % 10, 
+                list_top(&g->stars, Star, list_group)->id / 10, 
+                list_top(&g->stars, Star, list_group)->x, 
+                list_top(&g->stars, Star, list_group)->y, regroup_count);
     }
 
     return true;
