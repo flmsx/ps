@@ -11,7 +11,7 @@
 #include "list.h"
 
 #define VERBOSE 1
-/*BUG: This is only work in GCC, other compiler not tested */
+/*BUG: This works with GCC, other compiler not be tested */
 #define VERBOSE_PRINT(fmt, ...) \
     do { if (VERBOSE) printf(fmt, ##__VA_ARGS__);} while (0)
 
@@ -31,8 +31,8 @@ typedef struct map_t {
     struct list_head groups;
     int pops_count;
     struct list_head pops;
-    int regroups_count;
-    struct list_head regroups;
+    //int regroups_count;
+    //struct list_head regroups;
 } Map;
 
 typedef struct group_t {
@@ -43,6 +43,8 @@ typedef struct group_t {
     struct list_head stars;
     struct list_node list_map;
     bool dirty;
+	int regroups_count;
+	struct list_head regroups;
 } Group;
 
 typedef struct star_t {
@@ -115,6 +117,8 @@ static void init_group(Group *group)
     group->min_x = group->max_x = group->min_y = group->max_y = -1;
 	list_head_init(&(group->stars));
     group->dirty = false;
+	group->regroups_count = 0;
+	list_head_init(&(group->regroups));
 }
 
 #define add_to_group(grp, star)								\
@@ -157,10 +161,10 @@ static void init_map(Map *map)
 {
 	map->count = 0;
 	map->pops_count = 0;
-	map->regroups_count = 0;
+	//map->regroups_count = 0;
     list_head_init(&(map->groups));
     list_head_init(&(map->pops));
-    list_head_init(&(map->regroups));
+    //list_head_init(&(map->regroups));
 }
 
 Map* generate_map(Star **stars, int x, int y)
@@ -226,10 +230,7 @@ void destroy_snapshot(Snapshot *st)
     
 }
 
-/* Regroup has same layout as Group, but some member have diffrent meanings, see above */
 typedef struct regroup_t {
-    int id;
-    int color;
     int count;
     int min_x, max_x, min_y, max_y; //occupied rectange
     struct list_head head_stars;
@@ -237,7 +238,13 @@ typedef struct regroup_t {
     bool dirty; //has dirty star(s)
 } Regroup;
 
-//typedef Group Regroup;
+static void init_regroup(Regroup *regrp)
+{
+    regrp->count = 0;
+    regrp->min_x = regrp->max_x = regrp->min_y = regrp->max_y = -1;
+	list_head_init(&(regrp->head_stars));
+    regrp->dirty = false;
+}
 
 static inline void find_next_group_member_in_dirty_group(Star *star, struct list_head *h, Star **stars, int x, int y)
 {
@@ -331,33 +338,39 @@ bool pop(Star *star, Map *map, int x, int y)
      * TODO: consider the *NULL* columns */
     Group *g;
     Star *s;
-    int regroup_count;
+
+	// 1. Regroup within dirty groups
     VERBOSE_PRINT("\e[32mgroup id|            (x,y)| regroup count|    \n\e[0m");
     list_for_each(&map->groups, g, list_map) {
         if (!g->dirty) continue;
         
 		/* re-group the stars in the dirty group, ignore the outside */
-		//BUG: regroup_count = 0;
+		g->regroups_count = 0;
         list_for_each(&g->stars, s, list_group) {
             if(s->regrouped) continue;
 
             Regroup *regrp = (Regroup*)malloc(sizeof(Regroup));
 			assert(regrp);
-            assert(sizeof(Regroup) == sizeof(Group));
-            init_group((Group*)regrp);
+            init_regroup(regrp);
+            if (s->dirty) regrp->dirty = true;
 
 			find_next_group_member_in_dirty_group(s, &regrp->head_stars, stars, x, y);
-			list_add(&map->regroups, &regrp->list_regroup);
-			map->regroups_count++;
+			list_add(&g->regroups, &regrp->list_regroup);
+			g->regroups_count++;
         }
 		VERBOSE_PRINT("      %2d| (%d, %d) => (%d, %d)|             %d|\n",
                 g->id,
                 list_top(&g->stars, Star, list_group)->id % 10, 
                 list_top(&g->stars, Star, list_group)->id / 10, 
                 list_top(&g->stars, Star, list_group)->x, 
-                list_top(&g->stars, Star, list_group)->y, regroup_count);
+                list_top(&g->stars, Star, list_group)->y, g->regroups_count);
     }
 
+    // 2. generate new groups, only need to check the dirty Regroup
+	list_for_each(&map->groups, g, list_map) {
+        if (!g->dirty) continue;
+		
+	}
     return true;
 }
 
