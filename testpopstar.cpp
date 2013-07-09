@@ -1,25 +1,21 @@
 // testpopstar.cpp : Defines the entry point for the console application.
-/********************************************************
 
-模块名：testpopstar
-作者：	liaozhenlan
-日期：	2013年1月2日
-
-功能：  popstar穷举算法
-	程序运行结果为从初始局面到终局的走法。
-
-注释：	有问题可到百度贴吧讨论
-	http://tieba.baidu.com/p/2050726958
-
-********************************************************/
-
-#include "stdafx.h"
-#include <windows.h>
 #include <vector>
 #include <algorithm>
 #include <stdio.h>
+#include <string.h>
 using namespace std;
 
+#define TRUE true
+#define FALSE false
+typedef char BYTE;
+
+typedef bool BOOL;
+
+typedef struct point_t {
+	int x;
+	int y;
+} POINT;
 //实际棋盘大小为BOARD_SIZE-2
 //BOARD_SIZE相当加了棋盘边缘，方便计算
 #define BOARD_SIZE 12
@@ -70,14 +66,20 @@ typedef struct tagSTAR_BOARD
 
 }STAR_BOARD;
 
-class BigThan
+/*class BigThan
 {
 public:
-	bool operator()(STAR_BOARD &s1, STAR_BOARD &s2)
+	static bool operator()(STAR_BOARD &s1, STAR_BOARD &s2)
 	{
 		return s1.nEvalValue > s2.nEvalValue;
 	}
-};
+};*/
+static bool BigThan(const STAR_BOARD &s1, const STAR_BOARD &s2)
+{
+	return s1.nEvalValue > s2.nEvalValue;
+}
+
+
 
 //测试用。记录复杂度
 int  g_total=0;
@@ -92,7 +94,8 @@ void MakeBoardChain(STAR_BOARD &board);
 //随机初始化棋盘
 void RandBoard(STAR_BOARD &board)
 {
-	srand(GetTickCount());
+	srand(10000);
+	//srand(GetTickCount());
 	int i,j;
 	for (i = 1; i < BOARD_SIZE-1;i++)
 	{
@@ -142,7 +145,8 @@ void MakeBoardChain(STAR_BOARD &board)
 	int aloneStars = 0;	//零散的棋子个数
 	board.nMaxChainNum = 1;
 	board.nEvalValue = board.nValue;
-	ZeroMemory(board.boardChain, sizeof(board.boardChain));
+	//ZeroMemory(board.boardChain, sizeof(board.boardChain));
+	memset(board.boardChain, 0, sizeof(board.boardChain));
 	for (i = 1; i < BOARD_SIZE-1;i++)
 	{
 		for (j = 1; j < BOARD_SIZE-1; j++)
@@ -268,9 +272,11 @@ int main(int argc, char* argv[])
 	vector<STAR_BOARD> resultBoards;
 	STAR_BOARD board;
 	int totalscore = 0;
-	for (int n = 0; n < 1; n++)
+	int n;
+	for (n = 0; n < 1; n++)
 	{
-		ZeroMemory(&board, sizeof(board));
+		//ZeroMemory(&board, sizeof(board));
+		memset(&board, 0, sizeof(board));
 		RandBoard(board);
 	//PrintBoard(board);
 
@@ -286,10 +292,10 @@ int main(int argc, char* argv[])
 			bEnd = MakeStepBoards(*p1, *p2, resultBoards);
 			//printf("newBoard size=%d , result board = %d, total=%d\n", p2->size(), resultBoards.size(),g_total);
 			swap(p1, p2);
-			sort(p1->begin(), p1->end(), BigThan());
+			sort(p1->begin(), p1->end(), BigThan);
 		}
-		sort(resultBoards.begin(), resultBoards.end(), BigThan());
-		printf("result board = %d, max score=%d \n", resultBoards.size(), resultBoards[0].nEvalValue);
+		sort(resultBoards.begin(), resultBoards.end(), BigThan);
+		printf("result board = %ld, max score=%d \n", resultBoards.size(), resultBoards[0].nEvalValue);
 		//PrintBoard(resultBoards[0]);
 		totalscore += resultBoards[0].nEvalValue;
 	}
