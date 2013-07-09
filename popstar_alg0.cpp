@@ -16,20 +16,14 @@ typedef struct POINT_t {
 	int x;
 	int y;
 } POINT;
-//实际棋盘大小为BOARD_SIZE-2
-//BOARD_SIZE相当加了棋盘边缘，方便计算
 #define BOARD_SIZE 12
 
-//最长步数
 #define MAX_STEP ((BOARD_SIZE-2) * (BOARD_SIZE-2) /2)
 
-//棋子颜色
 enum star_color{RED = 1, YELLOW, BLUE, GREEN, PURPLE, END_COLOR=PURPLE};
 
-//剪枝
 int g_nBranch = 2000; 
 
-//不用POINT是为了节省空间
 typedef struct MY_POINT_t
 {
 	BYTE x;
@@ -45,53 +39,31 @@ static POINT g_NearPos[4] = {
 
 typedef struct STAR_BOARD_t
 {
-	//以棋子颜色填充。0表示棋子
 	BYTE board[BOARD_SIZE][BOARD_SIZE];
 
-	//相连的棋子称为链，即可消除的棋子
-	//每个链有不同的编号
 	BYTE boardChain[BOARD_SIZE][BOARD_SIZE];
-	//当前最大编号
 	int nMaxChainNum;
 
-	//记录已走的棋步
 	MY_POINT step[MAX_STEP];
-	//已走的步数
 	int nCurStepNum;
 
-	//当前实际得分
 	int nValue;
-	//评估分
 	int nEvalValue;
 
 }STAR_BOARD;
 
-/*class BigThan
-{
-public:
-	static bool operator()(STAR_BOARD &s1, STAR_BOARD &s2)
-	{
-		return s1.nEvalValue > s2.nEvalValue;
-	}
-};*/
 static bool BigThan(const STAR_BOARD &s1, const STAR_BOARD &s2)
 {
 	return s1.nEvalValue > s2.nEvalValue;
 }
 
-
-
-//测试用。记录复杂度
 int  g_total=0;
 
-//输出棋盘状况
 void PrintBoard(const STAR_BOARD &board);
-//输出走法
 void PrintResult(const STAR_BOARD &board, const STAR_BOARD &result, int n);
 
 void MakeBoardChain(STAR_BOARD &board);
 
-//随机初始化棋盘
 void RandBoard(STAR_BOARD &board)
 {
 	srand(10000);
@@ -107,9 +79,6 @@ void RandBoard(STAR_BOARD &board)
 	MakeBoardChain(board);
 }
 
-
-//递归生成棋子(i,j)对应的链
-//nlen为链的长度
 void MakeChain( STAR_BOARD &board, int i, int j, int &nLen)
 {
 	nLen++;
@@ -125,7 +94,6 @@ void MakeChain( STAR_BOARD &board, int i, int j, int &nLen)
 	}
 }
 
-//当消除整列时，该列右边的棋子需要左移
 void LeftMoveColumn(STAR_BOARD &board, int nCol)
 {
 	int i,j;
@@ -138,11 +106,10 @@ void LeftMoveColumn(STAR_BOARD &board, int nCol)
 	}
 }
 
-//生成整个棋盘的链，并计算评估分
 void MakeBoardChain(STAR_BOARD &board)
 {
 	int i,j;
-	int aloneStars = 0;	//零散的棋子个数
+	int aloneStars = 0;	
 	board.nMaxChainNum = 1;
 	board.nEvalValue = board.nValue;
 	//ZeroMemory(board.boardChain, sizeof(board.boardChain));
@@ -156,9 +123,8 @@ void MakeBoardChain(STAR_BOARD &board)
 				if (board.board[i+1][j] == board.board[i][j]
 					|| board.board[i][j+1] == board.board[i][j])
 				{
-					//有新的链
 					board.boardChain[i][j] = board.nMaxChainNum++;
-					int nLen = 0;	//链的长度
+					int nLen = 0;
 					MakeChain(board, i, j, nLen);
 					board.nEvalValue += 5 * nLen * nLen;
 				}
@@ -175,17 +141,16 @@ void MakeBoardChain(STAR_BOARD &board)
 	}
 }
 
-//从当前局面消除一个链后生成新的局面
 BOOL AddStepBoards(const STAR_BOARD &board, vector<STAR_BOARD> &stepNewBoards)
 {
 	int i,j;
 
-	if (1 == board.nMaxChainNum)	//没有可消除的棋子
+	if (1 == board.nMaxChainNum)	
 	{
 		return FALSE;
 	}
 	int k;
-	for(k = 1; k < board.nMaxChainNum; k++)	//消除编号为k的链，生成新的局面
+	for(k = 1; k < board.nMaxChainNum; k++)	
 	{
 		STAR_BOARD newBoard = board;
 		int chainLen=0; ;
@@ -211,12 +176,11 @@ BOOL AddStepBoards(const STAR_BOARD &board, vector<STAR_BOARD> &stepNewBoards)
 				}
 			}
 		}
-		//消除的得分
 		newBoard.nValue += 5 * chainLen * chainLen;
 
 		for (j = BOARD_SIZE-2; j >=1; j--)
 		{
-			if (0 == newBoard.board[BOARD_SIZE-2][j])	//空列
+			if (0 == newBoard.board[BOARD_SIZE-2][j])
 			{
 				//printf("LeftMoveColumn \n");
 				LeftMoveColumn(newBoard, j);
@@ -226,7 +190,7 @@ BOOL AddStepBoards(const STAR_BOARD &board, vector<STAR_BOARD> &stepNewBoards)
 		int n;
 		for(n = 0; n < stepNewBoards.size(); n++)
 		{
-			if (0 == memcmp(stepNewBoards[n].board, newBoard.board, sizeof(newBoard.board)))	//已记录相同局面
+			if (0 == memcmp(stepNewBoards[n].board, newBoard.board, sizeof(newBoard.board)))	
 			{
 				break;
 			}
