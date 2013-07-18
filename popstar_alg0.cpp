@@ -4,11 +4,12 @@
 #include <algorithm>
 #include <stdio.h>
 #include <string.h>
+#include "image.h"
 using namespace std;
 
 #define TRUE true
 #define FALSE false
-typedef char BYTE;
+typedef unsigned char BYTE;
 
 typedef bool BOOL;
 
@@ -19,8 +20,6 @@ typedef struct POINT_t {
 #define BOARD_SIZE 12
 
 #define MAX_STEP ((BOARD_SIZE-2) * (BOARD_SIZE-2) /2)
-
-enum star_color{RED = 1, YELLOW, BLUE, GREEN, PURPLE, END_COLOR=PURPLE};
 
 int g_nBranch = 2000; 
 
@@ -242,8 +241,11 @@ int main(int argc, char* argv[])
 	{
 		//ZeroMemory(&board, sizeof(board));
 		memset(&board, 0, sizeof(board));
-		RandBoard(board);
-	//PrintBoard(board);
+		//RandBoard(board);
+        image2board(argv[2], (BYTE*)(board.board));
+        MakeBoardChain(board);
+
+	    //PrintBoard(board);
 
 		stepTmpBoards1.clear();
 		stepTmpBoards2.clear();
@@ -266,22 +268,25 @@ int main(int argc, char* argv[])
 	}
 	printf("average score = %d\n\n", totalscore/n);
 	printf("g_total = %d\n", g_total);
-	//PrintResult(board, resultBoards[0], 0);
+	PrintResult(board, resultBoards[0], 0);
 	//getchar();
 
 	return 0;
 }
 
 
-void PrintBoard(const STAR_BOARD &board)
+void PrintBoard(const STAR_BOARD &board, BYTE step_x, BYTE step_y)
 {
 	int i,j;
 	for (i = 1; i < BOARD_SIZE-1;i++)
 	{
 		for (j = 1; j < BOARD_SIZE-1; j++)
 		{
-			printf("%d  ", board.board[i][j]);
-			
+			//printf("%d  ", board.board[i][j]);
+            if (step_x == i && step_y == j)
+			    print_star(board.board[i][j], P_Bright|P_Reverse, 22);
+			else
+                print_star(board.board[i][j], P_Bright, 22);
 		}
 		printf("\n");
 	}
@@ -310,7 +315,7 @@ void PrintBoard(const STAR_BOARD &board)
 
 void PrintResult(const STAR_BOARD &board, const STAR_BOARD &result, int n)
 {
-	PrintBoard(board);
+	//PrintBoard(board);
 	if (n == result.nCurStepNum)
 	{
 		return;
@@ -354,6 +359,8 @@ void PrintResult(const STAR_BOARD &board, const STAR_BOARD &result, int n)
 	}	
 	
 	MakeBoardChain(newBoard);
+
+    PrintBoard(board, newBoard.step[newBoard.nCurStepNum-1].x, newBoard.step[newBoard.nCurStepNum-1].y);
 	
 	PrintResult(newBoard, result, n+1);
 }

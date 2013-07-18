@@ -1,8 +1,10 @@
 SHELLOBJS = test_shell.o shell.o
 POPSTAROBJS = popstar.o shell.o
-
+FASTOBJS = popstar_alg0.o image.o
 CC = gcc
-CFLAGS = -g -Winline
+CFLAGS = -g0 -Winline
+CPPFLAGS = `GraphicsMagick++-config --cppflags --cxxflags` -fpermissive
+LDFLAGS = `GraphicsMagick++-config --ldflags --libs`
 
 all: shell popstar fast
 
@@ -12,8 +14,8 @@ shell: $(SHELLOBJS)
 popstar: $(POPSTAROBJS)
 	gcc $^ $(CFLAGS) -o $@
 
-fast: popstar_alg0.cpp
-	g++ $^ -o $@ -fpermissive
+fast: $(FASTOBJS)
+	g++ $^ $(CPPFLAGS) -o $@ $(LDFLAGS)
 
 shell.o: shell.h
 test_shell.o: shell.h
