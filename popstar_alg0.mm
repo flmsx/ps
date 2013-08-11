@@ -5,14 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "image.h"
+#include "imageOSX.h"
 using namespace std;
 
-#define TRUE true
-#define FALSE false
-typedef unsigned char BYTE;
-
-typedef bool BOOL;
+typedef uint8_t BYTE;
 
 typedef struct POINT_t {
 	int x;
@@ -141,13 +137,13 @@ void MakeBoardChain(STAR_BOARD &board)
 	}
 }
 
-BOOL AddStepBoards(const STAR_BOARD &board, vector<STAR_BOARD> &stepNewBoards)
+bool AddStepBoards(const STAR_BOARD &board, vector<STAR_BOARD> &stepNewBoards)
 {
 	int i,j;
 
 	if (1 == board.nMaxChainNum)	
 	{
-		return FALSE;
+		return false;
 	}
 	int k;
 	for(k = 1; k < board.nMaxChainNum; k++)	
@@ -203,25 +199,25 @@ BOOL AddStepBoards(const STAR_BOARD &board, vector<STAR_BOARD> &stepNewBoards)
 			stepNewBoards.push_back(newBoard);
 		}
 	}
-	return TRUE;
+	return true;
 }
 
 
-BOOL MakeStepBoards(const vector<STAR_BOARD> &stepOldBoards, vector<STAR_BOARD> &stepNewBoards, vector<STAR_BOARD> &resultBoards)
+bool MakeStepBoards(const vector<STAR_BOARD> &stepOldBoards, vector<STAR_BOARD> &stepNewBoards, vector<STAR_BOARD> &resultBoards)
 {
 	int i;
 	stepNewBoards.clear();
-	BOOL bEnd = TRUE;
+	bool bEnd = true;
 	for (i = 0; i < stepOldBoards.size() && i < g_nBranch; i++)
 	{
-		BOOL bAdd = AddStepBoards(stepOldBoards[i], stepNewBoards);
+		bool bAdd = AddStepBoards(stepOldBoards[i], stepNewBoards);
 		if (!bAdd)
 		{
 			resultBoards.push_back(stepOldBoards[i]);
 		}
 		else
 		{
-			bEnd = FALSE;
+			bEnd = false;
 		}
 	}
 	return bEnd;
@@ -231,46 +227,33 @@ BOOL MakeStepBoards(const vector<STAR_BOARD> &stepOldBoards, vector<STAR_BOARD> 
 
 int main(int argc, char* argv[])
 {
-	g_nBranch = atoi(argv[1]);
+	g_nBranch = atoi(argv[2]);
 	vector<STAR_BOARD> stepTmpBoards1;
 	vector<STAR_BOARD> stepTmpBoards2;
 	vector<STAR_BOARD> resultBoards;
 	STAR_BOARD board;
-	int totalscore = 0;
-	int n;
-	for (n = 0; n < 1; n++)
+	memset(&board, 0, sizeof(board));
+	image2Board(argv[1], (BYTE*)(board.board));
+	MakeBoardChain(board);
+	
+	stepTmpBoards1.clear();
+	stepTmpBoards2.clear();
+	resultBoards.clear();
+	stepTmpBoards1.push_back(board);
+	bool bEnd = false;
+	vector<STAR_BOARD> *p1 = &stepTmpBoards1;
+	vector<STAR_BOARD> *p2 = &stepTmpBoards2;
+	while(!bEnd)
 	{
-		//ZeroMemory(&board, sizeof(board));
-		memset(&board, 0, sizeof(board));
-		RandBoard(board);
-        	//image2board(argv[2], (BYTE*)(board.board));
-        	//MakeBoardChain(board);
-
-	    //PrintBoard(board);
-
-		stepTmpBoards1.clear();
-		stepTmpBoards2.clear();
-		resultBoards.clear();
-		stepTmpBoards1.push_back(board);
-		BOOL bEnd = FALSE;
-		vector<STAR_BOARD> *p1 = &stepTmpBoards1;
-		vector<STAR_BOARD> *p2 = &stepTmpBoards2;
-		while(!bEnd)
-		{
-			bEnd = MakeStepBoards(*p1, *p2, resultBoards);
-			//printf("newBoard size=%d , result board = %d, total=%d\n", p2->size(), resultBoards.size(),g_total);
-			swap(p1, p2);
-			sort(p1->begin(), p1->end(), BigThan);
-		}
-		sort(resultBoards.begin(), resultBoards.end(), BigThan);
-		printf("result board = %ld, max score=%d \n", resultBoards.size(), resultBoards[0].nEvalValue);
-		//PrintBoard(resultBoards[0]);
-		totalscore += resultBoards[0].nEvalValue;
+		bEnd = MakeStepBoards(*p1, *p2, resultBoards);
+		//printf("newBoard size=%d , result board = %d, total=%d\n", p2->size(), resultBoards.size(),g_total);
+		swap(p1, p2);
+		sort(p1->begin(), p1->end(), BigThan);
 	}
-	printf("average score = %d\n\n", totalscore/n);
+	sort(resultBoards.begin(), resultBoards.end(), BigThan);
+	printf("result board = %ld, max score=%d \n", resultBoards.size(), resultBoards[0].nEvalValue);
 	printf("g_total = %d\n", g_total);
 	PrintResult(board, resultBoards[0], 0);
-	//getchar();
 
 	return 0;
 }
@@ -285,9 +268,9 @@ void PrintBoard(const STAR_BOARD &board, BYTE step_x, BYTE step_y)
 		{
 			//printf("%d  ", board.board[i][j]);
             if (step_x == i && step_y == j)
-			    print_star(board.board[i][j], P_Bright|P_Reverse, '*');
+			    printStar(board.board[i][j], P_Bright|P_Reverse, '*');
 			else
-                print_star(board.board[i][j], P_Bright, '*');
+                printStar(board.board[i][j], P_Bright, '*');
 		}
 		printf("\n");
 	}

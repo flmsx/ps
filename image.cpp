@@ -10,12 +10,12 @@ first star pos: (0, 409)
 (31, 31)
 */
 
-#include <Magick++.h>
+//#include <Magick++.h>
 #include <stdio.h>
 #include <string.h>
 #include "image.h"
-using namespace std;
-using namespace Magick;
+//using namespace std;
+//using namespace Magick;
 
 #define BLUE_HEX    "#5AA2E7"
 #define PURPLE_HEX  "#FF41EF"
@@ -23,11 +23,12 @@ using namespace Magick;
 #define YELLOW_HEX  "#D6CB00"
 #define RED_HEX     "#FF5D5A" 
 
-#define STAR 22
+//#define STAR 22
+#define STAR '*'
 
 void print_star(int color, int style, char shape)
 {
-    char *color_str;
+    const char *color_str;
     char format_str[50] = {0,};
     const char *close_style_str = "\e[0m";
     const char *blink_style_str = "\e[5m";
@@ -65,9 +66,13 @@ void print_star(int color, int style, char shape)
     strcat(format_str, color_str);
     strcat(format_str, "%c ");
     strcat(format_str, close_style_str);
+#ifdef TEST
+	printf("%s :", format_str);
+#endif
     printf(format_str, shape);
 }
 
+#if 0
 void image2board(const char* image, unsigned char *board)
 {
     InitializeMagick(0);
@@ -92,6 +97,7 @@ void image2board(const char* image, unsigned char *board)
         }
     }
 }
+#endif
 
 #if 0
 int main(int argc,char **argv)
@@ -122,6 +128,13 @@ int main(int argc,char **argv)
         printf("\n");
     }
     return 0;
+}
+#endif
+
+#ifdef TEST
+int main(int argc,char **argv)
+{
+	print_star(RED, P_Bright, 22);
 }
 #endif
 

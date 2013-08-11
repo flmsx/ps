@@ -1,0 +1,9 @@
+FASTOBJS = popstar_alg0.o image.o
+all: fast
+
+
+fast: $(FASTOBJS)
+	$(CXX) $^ $(CPPFLAGS) -o $@ $(LDFLAGS)
+
+clean:
+	rm -f *.o
