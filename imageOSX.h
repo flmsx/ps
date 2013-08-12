@@ -1,6 +1,10 @@
 #ifndef IMAGEOSX_H
 #define IMAGEOSX_H
+#ifdef IOS
+#import <UIKit/UIKit.h>
+#else
 #import <AppKit/AppKit.h>
+#endif
 
 enum star_color{POPED = 0, RED, YELLOW, BLUE, GREEN, PURPLE, END_COLOR=PURPLE};
 

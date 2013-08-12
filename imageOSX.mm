@@ -8,6 +8,7 @@
 
 #import "imageOSX.h"
 
+#ifndef IOS
 CGImageRef MyCreateCGImageFromFile (NSString* path)
 {
     // Get the URL for the pathname passed to the function.
@@ -52,13 +53,17 @@ CGImageRef MyCreateCGImageFromFile (NSString* path)
  
     return myImage;
 }
+#endif
 
 void imageDump(char* file)
 {
-    //UIImage* image = [UIImage imageNamed:file];
 	NSString* f = [NSString stringWithUTF8String:file];
+#ifdef IOS
+    UIImage* image = [UIImage imageNamed:f];
+    CGImageRef cgimage = image.CGImage;
+#else
     CGImageRef cgimage = MyCreateCGImageFromFile(f); 
-    
+#endif    
     size_t width  = CGImageGetWidth(cgimage);
     size_t height = CGImageGetHeight(cgimage);
     
@@ -144,10 +149,16 @@ void imageDump(char* file)
 
 void image2Board(const char *file, uint8_t *board)
 {
-    //UIImage* image = [UIImage imageNamed:file];
-    //NSImage* image = [NSImage imageNamed:file];
-    CGImageRef cgimage = MyCreateCGImageFromFile([NSString stringWithUTF8String:file]);
-    
+#ifdef IOS
+    NSString *f = @"IMG_xxxx.PNG";
+    NSString* number = [NSString stringWithUTF8String:file];
+    f = [f stringByReplacingOccurrencesOfString:@"xxxx" withString:number];
+    UIImage* image = [UIImage imageNamed:f];
+    CGImageRef cgimage = image.CGImage;
+#else
+    NSString* f = [NSString stringWithUTF8String:file];
+    CGImageRef cgimage = MyCreateCGImageFromFile(f); 
+#endif
     size_t width  = CGImageGetWidth(cgimage);
     size_t height = CGImageGetHeight(cgimage);
     

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "imageOSX.h"
+#include "shellOSX.h"
 using namespace std;
 
 typedef uint8_t BYTE;
@@ -27,10 +28,10 @@ typedef struct MY_POINT_t
 }MY_POINT;
 
 static POINT g_NearPos[4] = {
-	{-1, 0},	//вС
-	{0, -1},	//ио
-	{0, 1},		//об
-	{1, 0},		//ср
+	{-1, 0},
+	{0, -1},
+	{0, 1},	
+	{1, 0},	
 };
 
 typedef struct STAR_BOARD_t
@@ -55,7 +56,7 @@ static bool BigThan(const STAR_BOARD &s1, const STAR_BOARD &s2)
 
 int  g_total=0;
 
-void PrintBoard(const STAR_BOARD &board);
+void PrintBoard(const STAR_BOARD &board, BYTE step_x, BYTE step_y);
 void PrintResult(const STAR_BOARD &board, const STAR_BOARD &result, int n);
 
 void MakeBoardChain(STAR_BOARD &board);
@@ -223,7 +224,64 @@ bool MakeStepBoards(const vector<STAR_BOARD> &stepOldBoards, vector<STAR_BOARD> 
 	return bEnd;
 }
 
+SHELL_MK_CMD(go)
+{
+    static int n = 0;
+    
+    STAR_BOARD board = ((STAR_BOARD*)shell->data)[0]; 
+    STAR_BOARD result = ((STAR_BOARD*)shell->data)[1];
+	
+    if (n == result.nCurStepNum)
+	{
+		return;
+	}
+	STAR_BOARD newBoard = board;
+	int chainLen=0; 
+	int i,j,k;
+	k = board.boardChain[result.step[n].x][result.step[n].y];
+	
+	for (i = 1; i < BOARD_SIZE-1; i++)
+	{
+		for (j = 1; j < BOARD_SIZE-1; j++)
+		{
+			if (board.boardChain[i][j] == k)
+			{
+				if (chainLen==0)
+				{
+					newBoard.step[newBoard.nCurStepNum].x = i;
+					newBoard.step[newBoard.nCurStepNum].y = j;
+					newBoard.nCurStepNum++;						
+				}
+				chainLen++;
+				int pos;
+				for (pos = i; pos > 0; pos--)
+				{
+					newBoard.board[pos][j] = newBoard.board[pos-1][j];
+				}
+			}
+		}
+	}
+	newBoard.nValue += 5 * chainLen * chainLen;
+	for (j = BOARD_SIZE-2; j >=1; j--)
+	{
+		if (0 == newBoard.board[BOARD_SIZE-2][j])
+		{
+			//printf("LeftMoveColumn \n");
+			LeftMoveColumn(newBoard, j);
+		}
+	}	
+	
+	MakeBoardChain(newBoard);
 
+    PrintBoard(board, newBoard.step[newBoard.nCurStepNum-1].x, newBoard.step[newBoard.nCurStepNum-1].y);
+    
+    ((STAR_BOARD*)shell->data)[0] = newBoard;
+    ++n;
+}
+
+shell_cmd_t shell_cmds_table[] = {
+    SHELL_CMD(go, "", "Move one step"),
+};
 
 int main(int argc, char* argv[])
 {
@@ -253,9 +311,17 @@ int main(int argc, char* argv[])
 	sort(resultBoards.begin(), resultBoards.end(), BigThan);
 	printf("result board = %ld, max score=%d \n", resultBoards.size(), resultBoards[0].nEvalValue);
 	printf("g_total = %d\n", g_total);
-	PrintResult(board, resultBoards[0], 0);
+	//PrintResult(board, resultBoards[0], 0);
 
-	return 0;
+    STAR_BOARD shell_data[] = {board, resultBoards[0]};
+    shell_t *shell = shell_new((void*)shell_data);
+
+    int i;
+    for (i = 0; i < sizeof(shell_cmds_table)/sizeof(shell_cmd_t); i++)
+        shell_register_cmd(shell_cmds_table[i], shell);
+    int ret = shell_run(shell);                    
+    shell_destroy(shell);
+    return ret;
 }
 
 
@@ -348,3 +414,4 @@ void PrintResult(const STAR_BOARD &board, const STAR_BOARD &result, int n)
 	
 	PrintResult(newBoard, result, n+1);
 }
+
