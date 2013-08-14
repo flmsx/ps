@@ -30,7 +30,7 @@ export CFLAGS="-arch armv6 -pipe -no-cpp-precomp -isysroot $SDKROOT -miphoneos-v
 setenv_all
 }
 
-setenv_arm7()
+setenv_arm7_gcc()
 {
 unset DEVROOT SDKROOT CFLAGS CC LD CPP CXX AR AS NM CXXCPP RANLIB LDFLAGS CPPFLAGS CXXFLAGS
 
@@ -40,6 +40,29 @@ export SDKROOT=$DEVROOT/SDKs/iPhoneOS$IOS_BASE_SDK.sdk
 export CFLAGS="-arch armv7 -pipe -no-cpp-precomp -isysroot $SDKROOT -miphoneos-version-min=$IOS_DEPLOY_TGT -I$SDKROOT/usr/include/"
 
 setenv_all
+}
+
+setenv_arm7_clang()
+{
+unset DEVROOT SDKROOT CFLAGS CC LD CPP CXX AR AS NM CXXCPP RANLIB LDFLAGS CPPFLAGS CXXFLAGS
+
+export DEVROOT=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain
+export SDKROOT=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS$IOS_BASE_SDK.sdk
+
+export CFLAGS="-arch armv7 -pipe -no-cpp-precomp -isysroot $SDKROOT -miphoneos-version-min=$IOS_DEPLOY_TGT -I$SDKROOT/usr/include/"
+
+export CXX="$DEVROOT/usr/bin/clang++"
+export CC="$DEVROOT/usr/bin/clang"
+
+export LD=$DEVROOT/usr/bin/ld
+export AR=$DEVROOT/usr/bin/ar
+export AS=$DEVROOT/usr/bin/as
+export NM=$DEVROOT/usr/bin/nm
+export RANLIB=$DEVROOT/usr/bin/ranlib
+export LDFLAGS="-L$SDKROOT/usr/lib/"
+
+export CPPFLAGS=$CFLAGS
+export CXXFLAGS=$CFLAGS
 }
 
 setenv_arm7s()
