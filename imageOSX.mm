@@ -112,7 +112,6 @@ void imageDump(char* file)
     
     CGDataProviderRef provider = CGImageGetDataProvider(cgimage);
     NSData* data = (id)CGDataProviderCopyData(provider);
-    [data autorelease];
     const uint8_t* bytes = (uint8_t*)[data bytes];
     
     printf("Pixel Data:\n");
@@ -225,8 +224,9 @@ void image2Board(const char *file, uint8_t *board)
             else if (*color == PURPLE_HEX)
                 board[(row+1)*12+col+1] = PURPLE;
             else {
-                printf("Something wrong when convert image to board!\n");
-                exit(-1);
+                board[(row+1)*12+col+1] = POPED;
+                //printf("Something wrong when convert image to board!\n");
+                //exit(-1);
             }
         }
     }

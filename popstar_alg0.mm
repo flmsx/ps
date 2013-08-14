@@ -224,7 +224,7 @@ bool MakeStepBoards(const vector<STAR_BOARD> &stepOldBoards, vector<STAR_BOARD> 
 	return bEnd;
 }
 
-SHELL_MK_CMD(go)
+SHELL_MK_CMD(g)
 {
     static int n = 0;
     
@@ -280,7 +280,7 @@ SHELL_MK_CMD(go)
 }
 
 shell_cmd_t shell_cmds_table[] = {
-    SHELL_CMD(go, "", "Move one step"),
+    SHELL_CMD(g, "", "Move one step"),
 };
 
 int main(int argc, char* argv[])
