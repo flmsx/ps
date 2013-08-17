@@ -16,6 +16,7 @@ typedef struct s_shell_t {
 
 typedef struct s_shell_cmd_t {
     const char* name;
+    const char* short_name;
     void (*func)(shell_arg_t*, struct s_shell_t*);
     const char* args;
     const char* doc;
@@ -24,7 +25,7 @@ typedef struct s_shell_cmd_t {
 #define SHELL_MK_CMD(x) void shell_cmd_ ## x (shell_arg_t *args, shell_t *shell)
 
 //The dispatch table
-#define SHELL_CMD(func, params, help) {#func, shell_cmd_ ## func, params, help}
+#define SHELL_CMD(func, shortn, params, help) {#func, shortn, shell_cmd_ ## func, params, help}
 
 shell_t* shell_new(void *context);
 

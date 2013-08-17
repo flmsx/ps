@@ -22,8 +22,8 @@ static SHELL_MK_CMD(help)
     }
 }
 
-static shell_cmd_t builtin_cmd_exit = SHELL_CMD(exit,"","Exits the interpreter");
-static shell_cmd_t builtin_cmd_help = SHELL_CMD(help,"","Display this help");
+static shell_cmd_t builtin_cmd_exit = SHELL_CMD(exit,"e","","Exits the interpreter");
+static shell_cmd_t builtin_cmd_help = SHELL_CMD(help,"h","","Display this help");
 
 shell_t* shell_new(void *context)
 {
@@ -58,21 +58,28 @@ void shell_register_cmd(shell_cmd_t cmd, shell_t *shell)
 static shell_arg_t *args_parse(const char *s);
 
 static const char *delim = " \n(,);";
+
+static char pre_cmd[20] = {0,};
 static void parse(char *cmd, shell_t *shell)
 {
     const char* tok = strtok(cmd,delim);
-    if(!tok)
-        return;
+    if(!tok) {
+		if (strlen(pre_cmd))
+			tok = pre_cmd;
+		else
+        	return;
+	}
 
     int i=shell->cmds_cnt;
     while(i--) {
         shell_cmd_t cur = shell->dsp_table[i];
-        if(!strcmp(tok,cur.name)) {
+        if(!strcmp(tok,cur.name) || !strcmp(tok,cur.short_name)) {
             shell_arg_t *args = args_parse(cur.args);
             if(args==NULL && strlen(cur.args))
                 return;//Error in argument parsing
             cur.func(args, shell);
             free(args);
+			strcpy(pre_cmd, tok);
             return;
         }
     }
