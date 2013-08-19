@@ -335,13 +335,19 @@ void PrintBoard(const STAR_BOARD &board, BYTE step_x, BYTE step_y)
 			//printf("%d  ", board.board[i][j]);
             if (step_x == i && step_y == j)
 #ifdef IOS //For Bug in ios terminal 
-			    printStar(board.board[i][j], P_Reverse, '*');
+				if (board.board[i][j] == GREEN)
+			    	printStar(board.board[i][j], P_Reverse, '*');
+				else
+			    	printStar(board.board[i][j], P_Bright|P_Reverse, '*');
 #else
 			    printStar(board.board[i][j], P_Bright|P_Reverse, '*');
 #endif
 			else
 #ifdef IOS
-                printStar(board.board[i][j], P_None, '*');
+				if (board.board[i][j] == GREEN)
+                	printStar(board.board[i][j], P_None, '*');
+				else
+                	printStar(board.board[i][j], P_Bright, '*');
 #else
                 printStar(board.board[i][j], P_Bright, '*');
 #endif
